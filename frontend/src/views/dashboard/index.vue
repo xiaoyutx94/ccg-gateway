@@ -72,34 +72,31 @@
       </el-col>
       <el-col :span="12">
         <el-card class="main-card" shadow="always">
-          <template #header>请求趋势</template>
-          <div ref="chartRef" class="chart-container"></div>
+          <template #header>每日明细</template>
+          <el-table :data="dailyStats" stripe size="small" class="detail-table">
+            <el-table-column prop="usage_date" label="日期" width="90" />
+            <el-table-column prop="provider_name" label="服务商" />
+            <el-table-column prop="request_count" label="请求" width="60" />
+            <el-table-column label="成功率" width="70">
+              <template #default="{ row }">
+                {{ row.request_count ? ((row.success_count / row.request_count) * 100).toFixed(0) : 0 }}%
+              </template>
+            </el-table-column>
+          </el-table>
         </el-card>
       </el-col>
     </el-row>
 
-    <!-- 每日明细 -->
-    <el-card class="detail-card" shadow="always">
-      <template #header>每日明细</template>
-      <el-table :data="dailyStats" stripe size="small" max-height="300">
-        <el-table-column prop="usage_date" label="日期" width="100" />
-        <el-table-column prop="provider_name" label="服务商" />
-        <el-table-column prop="cli_type" label="CLI" width="100" />
-        <el-table-column prop="request_count" label="请求" width="70" />
-        <el-table-column prop="success_count" label="成功" width="70" />
-        <el-table-column prop="failure_count" label="失败" width="70" />
-        <el-table-column label="Token" width="100">
-          <template #default="{ row }">
-            {{ row.prompt_tokens + row.completion_tokens }}
-          </template>
-        </el-table-column>
-      </el-table>
+    <!-- 请求趋势 -->
+    <el-card class="chart-card" shadow="always">
+      <template #header>请求趋势</template>
+      <div ref="chartRef" class="chart-container"></div>
     </el-card>
   </div>
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, reactive, computed } from 'vue'
+import { onMounted, ref, reactive, computed, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import { useDashboardStore } from '@/stores/dashboard'
@@ -208,15 +205,17 @@ function updateChart() {
 }
 
 onMounted(async () => {
-  if (chartRef.value) {
-    chart = echarts.init(chartRef.value)
-  }
   await Promise.all([
     dashboardStore.fetchStatus(),
     providerStore.fetchProviders(),
     settingsStore.fetchSettings(),
     fetchStats()
   ])
+  await nextTick()
+  if (chartRef.value && !chart) {
+    chart = echarts.init(chartRef.value)
+    updateChart()
+  }
 })
 </script>
 
@@ -327,11 +326,20 @@ onMounted(async () => {
 }
 
 .chart-container {
-  height: 100%;
+  height: 280px;
 }
 
-.detail-card {
+.chart-card {
   margin-bottom: 16px;
+}
+
+.chart-card :deep(.el-card__body) {
+  height: 280px;
+  padding: 16px;
+}
+
+.detail-table {
+  height: 100%;
 }
 
 .card-header {

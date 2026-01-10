@@ -36,7 +36,6 @@ async def init_default_data():
             if not result.scalar_one_or_none():
                 cli = CliSettings(
                     cli_type=cli_type,
-                    routing_mode="availability",
                     default_json_config="{}",
                     updated_at=now
                 )

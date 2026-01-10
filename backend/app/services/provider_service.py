@@ -93,8 +93,8 @@ class ProviderService:
         # Insert using raw SQL to get lastrowid reliably
         result = await self.db.execute(
             text("""
-                INSERT INTO providers (cli_type, name, base_url, api_key, enabled, failure_threshold, blacklist_minutes, sort_order, created_at, updated_at)
-                VALUES (:cli_type, :name, :base_url, :api_key, :enabled, :failure_threshold, :blacklist_minutes, :sort_order, :created_at, :updated_at)
+                INSERT INTO providers (cli_type, name, base_url, api_key, enabled, failure_threshold, blacklist_minutes, consecutive_failures, sort_order, created_at, updated_at)
+                VALUES (:cli_type, :name, :base_url, :api_key, :enabled, :failure_threshold, :blacklist_minutes, :consecutive_failures, :sort_order, :created_at, :updated_at)
             """),
             {
                 'cli_type': data.cli_type.value,
@@ -104,6 +104,7 @@ class ProviderService:
                 'enabled': 1 if data.enabled else 0,
                 'failure_threshold': data.failure_threshold,
                 'blacklist_minutes': data.blacklist_minutes,
+                'consecutive_failures': 0,
                 'sort_order': max_order + 1,
                 'created_at': now,
                 'updated_at': now

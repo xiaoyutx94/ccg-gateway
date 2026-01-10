@@ -1,8 +1,7 @@
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase
-from sqlalchemy import text
 
-from app.core.config import settings, DATA_DIR
+from app.core.config import DATA_DIR
 
 
 class Base(DeclarativeBase):
@@ -32,18 +31,6 @@ async def get_db():
             await session.close()
 
 
-def _run_migrations(conn):
-    """Run database migrations for schema changes."""
-    result = conn.execute(text("PRAGMA table_info(providers)"))
-    columns = [row[1] for row in result.fetchall()]
-
-    if columns and "cli_type" not in columns:
-        conn.execute(text(
-            "ALTER TABLE providers ADD COLUMN cli_type VARCHAR(20) NOT NULL DEFAULT 'claude_code'"
-        ))
-
-
 async def init_db():
     async with engine.begin() as conn:
-        await conn.run_sync(_run_migrations)
         await conn.run_sync(Base.metadata.create_all)
