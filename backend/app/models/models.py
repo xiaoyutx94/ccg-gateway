@@ -33,15 +33,14 @@ class ProviderModelMap(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
     provider_id = Column(Integer, ForeignKey("providers.id", ondelete="CASCADE"), nullable=False)
-    model_role = Column(String(20), nullable=False)  # primary, reasoning, haiku, sonnet, opus
-    target_model = Column(String(100), nullable=False)
+    source_model = Column(String(100), nullable=False)  # CLI请求的模型名
+    target_model = Column(String(100), nullable=False)  # 转发给服务商的模型名
     enabled = Column(Integer, nullable=False, default=1)
 
     provider = relationship("Provider", back_populates="model_maps")
 
     __table_args__ = (
-        UniqueConstraint("provider_id", "model_role", name="uq_provider_model_role"),
-        CheckConstraint("model_role IN ('primary','reasoning','haiku','sonnet','opus')", name="ck_model_role"),
+        UniqueConstraint("provider_id", "source_model", name="uq_provider_source_model"),
     )
 
 

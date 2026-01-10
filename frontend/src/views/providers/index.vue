@@ -34,6 +34,9 @@
                 {{ element.name }}
                 <el-tag v-if="element.is_blacklisted" type="danger" size="small">已拉黑</el-tag>
                 <el-tag v-else-if="!element.enabled" type="info" size="small">已禁用</el-tag>
+                <el-tag v-if="element.model_maps.length > 0" type="success" size="small">
+                  {{ element.model_maps.length }}个模型映射
+                </el-tag>
               </div>
               <div class="provider-url">{{ element.base_url }}</div>
             </div>
@@ -68,7 +71,7 @@
     <el-dialog
       v-model="showDialog"
       :title="editingProvider ? '编辑服务商' : '添加服务商'"
-      width="600px"
+      width="700px"
     >
       <el-form :model="form" label-width="120px">
         <el-form-item label="名称" required>
@@ -88,24 +91,28 @@
           <el-input-number v-model="form.blacklist_minutes" :min="0" :max="1440" />
         </el-form-item>
 
-        <template v-if="activeCliType === 'claude_code'">
-          <el-divider>模型转发配置</el-divider>
-          <el-form-item label="主模型">
-          <el-input v-model="form.model_primary" placeholder="留空则不转发" />
-        </el-form-item>
-        <el-form-item label="推理模型">
-          <el-input v-model="form.model_reasoning" placeholder="留空则不转发" />
-        </el-form-item>
-        <el-form-item label="Haiku 模型">
-          <el-input v-model="form.model_haiku" placeholder="留空则不转发" />
-        </el-form-item>
-        <el-form-item label="Sonnet 模型">
-          <el-input v-model="form.model_sonnet" placeholder="留空则不转发" />
-        </el-form-item>
-        <el-form-item label="Opus 模型">
-            <el-input v-model="form.model_opus" placeholder="留空则不转发" />
-          </el-form-item>
-        </template>
+        <el-divider>模型转发配置</el-divider>
+        <div class="model-maps-section">
+          <div class="model-maps-header">
+            <span class="model-maps-tip">将CLI请求的模型名映射为服务商模型名</span>
+            <el-button type="primary" size="small" @click="addModelMap">
+              <el-icon><Plus /></el-icon>添加映射
+            </el-button>
+          </div>
+          <div v-if="form.model_maps.length === 0" class="model-maps-empty">
+            暂无模型映射配置
+          </div>
+          <div v-else class="model-maps-list">
+            <div v-for="(map, index) in form.model_maps" :key="index" class="model-map-item">
+              <el-input v-model="map.source_model" placeholder="源模型 (CLI请求)" class="model-input" />
+              <el-icon class="arrow-icon"><Right /></el-icon>
+              <el-input v-model="map.target_model" placeholder="目标模型 (服务商)" class="model-input" />
+              <el-button type="danger" size="small" circle @click="removeModelMap(index)">
+                <el-icon><Delete /></el-icon>
+              </el-button>
+            </div>
+          </div>
+        </div>
       </el-form>
       <template #footer>
         <el-button @click="showDialog = false">取消</el-button>
@@ -138,17 +145,19 @@ const showDialog = computed({
   }
 })
 
+interface FormModelMap {
+  source_model: string
+  target_model: string
+  enabled: boolean
+}
+
 const form = ref({
   name: '',
   base_url: '',
   api_key: '',
   failure_threshold: 3,
   blacklist_minutes: 10,
-  model_primary: '',
-  model_reasoning: '',
-  model_haiku: '',
-  model_sonnet: '',
-  model_opus: ''
+  model_maps: [] as FormModelMap[]
 })
 
 function resetForm() {
@@ -158,12 +167,20 @@ function resetForm() {
     api_key: '',
     failure_threshold: 3,
     blacklist_minutes: 10,
-    model_primary: '',
-    model_reasoning: '',
-    model_haiku: '',
-    model_sonnet: '',
-    model_opus: ''
+    model_maps: []
   }
+}
+
+function addModelMap() {
+  form.value.model_maps.push({
+    source_model: '',
+    target_model: '',
+    enabled: true
+  })
+}
+
+function removeModelMap(index: number) {
+  form.value.model_maps.splice(index, 1)
 }
 
 function handleCliTypeChange(cliType: string) {
@@ -179,35 +196,22 @@ function handleEdit(provider: Provider) {
     api_key: provider.api_key,
     failure_threshold: provider.failure_threshold,
     blacklist_minutes: provider.blacklist_minutes,
-    model_primary: provider.model_maps.find(m => m.model_role === 'primary')?.target_model || '',
-    model_reasoning: provider.model_maps.find(m => m.model_role === 'reasoning')?.target_model || '',
-    model_haiku: provider.model_maps.find(m => m.model_role === 'haiku')?.target_model || '',
-    model_sonnet: provider.model_maps.find(m => m.model_role === 'sonnet')?.target_model || '',
-    model_opus: provider.model_maps.find(m => m.model_role === 'opus')?.target_model || ''
+    model_maps: provider.model_maps.map(m => ({
+      source_model: m.source_model,
+      target_model: m.target_model,
+      enabled: m.enabled
+    }))
   }
 }
 
 function buildModelMaps(): ModelMap[] {
-  if (activeCliType.value !== 'claude_code') {
-    return []
-  }
-  const maps: ModelMap[] = []
-  if (form.value.model_primary) {
-    maps.push({ model_role: 'primary', target_model: form.value.model_primary, enabled: true })
-  }
-  if (form.value.model_reasoning) {
-    maps.push({ model_role: 'reasoning', target_model: form.value.model_reasoning, enabled: true })
-  }
-  if (form.value.model_haiku) {
-    maps.push({ model_role: 'haiku', target_model: form.value.model_haiku, enabled: true })
-  }
-  if (form.value.model_sonnet) {
-    maps.push({ model_role: 'sonnet', target_model: form.value.model_sonnet, enabled: true })
-  }
-  if (form.value.model_opus) {
-    maps.push({ model_role: 'opus', target_model: form.value.model_opus, enabled: true })
-  }
-  return maps
+  return form.value.model_maps
+    .filter(m => m.source_model && m.target_model)
+    .map(m => ({
+      source_model: m.source_model,
+      target_model: m.target_model,
+      enabled: true
+    }))
 }
 
 async function handleSave() {
@@ -326,5 +330,50 @@ onMounted(() => {
   margin-left: 10px;
   color: var(--el-text-color-secondary);
   font-size: 12px;
+}
+
+.model-maps-section {
+  padding: 0 20px;
+}
+
+.model-maps-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.model-maps-tip {
+  color: var(--el-text-color-secondary);
+  font-size: 13px;
+}
+
+.model-maps-empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--el-text-color-secondary);
+  background: var(--el-fill-color-light);
+  border-radius: 4px;
+}
+
+.model-maps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.model-map-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.model-input {
+  flex: 1;
+}
+
+.arrow-icon {
+  color: var(--el-text-color-secondary);
+  font-size: 16px;
 }
 </style>

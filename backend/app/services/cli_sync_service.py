@@ -477,12 +477,12 @@ def sync_gemini_settings(base_url: str, api_key: str, default_json_config: str, 
         env_path = settings_path.parent / ".env"
         if enabled:
             env_lines = [
-                f'GOOGLE_GEMINI_BASE_URL="{base_url}"',
-                f'GEMINI_API_KEY="{api_key}"',
+                f'GEMINI_API_KEY={api_key}',
+                f'GOOGLE_GEMINI_BASE_URL={base_url}',
                 ''
             ]
             with open(env_path, 'w', encoding='utf-8') as f:
-                f.write(chr(10).join(env_lines))
+                f.write('\n'.join(env_lines))
 
             try:
                 custom_config = json.loads(default_json_config) if default_json_config else {}

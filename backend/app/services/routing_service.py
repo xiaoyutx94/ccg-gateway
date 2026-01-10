@@ -1,10 +1,14 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from typing import Optional
 import time
 import json
+import logging
 
 from app.models.models import Provider, SystemLog
+
+logger = logging.getLogger(__name__)
 
 
 async def _create_system_log(db: AsyncSession, level: str, event_type: str, message: str, provider_name: str = None, details: dict = None):
@@ -30,11 +34,16 @@ class RoutingService:
 
         result = await self.db.execute(
             select(Provider)
+            .options(selectinload(Provider.model_maps))
             .where(Provider.enabled == 1)
             .where(Provider.cli_type == cli_type)
             .order_by(Provider.sort_order)
         )
         providers = result.scalars().all()
+
+        if not providers:
+            logger.warning(f"No enabled providers found for cli_type={cli_type}")
+            return None
 
         skipped_providers = []
         for provider in providers:
@@ -50,8 +59,11 @@ class RoutingService:
                     await self.db.commit()
                 return provider
             else:
-                skipped_providers.append(provider.name)
+                remaining = provider.blacklisted_until - now
+                skipped_providers.append(f"{provider.name}({remaining}s)")
 
+        # All providers are blacklisted
+        logger.warning(f"All providers blacklisted for cli_type={cli_type}: {skipped_providers}")
         return None
 
     def _is_blacklisted(self, provider: Provider, now: int) -> bool:

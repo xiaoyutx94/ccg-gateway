@@ -4,7 +4,7 @@ export type CliType = 'claude_code' | 'codex' | 'gemini'
 // Provider types
 export interface ModelMap {
   id?: number
-  model_role: 'primary' | 'reasoning' | 'haiku' | 'sonnet' | 'opus'
+  source_model: string
   target_model: string
   enabled: boolean
 }

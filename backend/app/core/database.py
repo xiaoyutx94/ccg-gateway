@@ -12,7 +12,12 @@ class Base(DeclarativeBase):
 engine = create_async_engine(
     f"sqlite+aiosqlite:///{DATA_DIR}/ccg_gateway.db",
     echo=False,
-    connect_args={"check_same_thread": False}
+    connect_args={
+        "check_same_thread": False,
+        "timeout": 30  # 增加超时时间，避免锁定
+    },
+    pool_pre_ping=True,  # 连接前检查
+    pool_recycle=3600,  # 每小时回收连接
 )
 
 # Session factory
@@ -34,3 +39,7 @@ async def get_db():
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+async def close_db():
+    await engine.dispose()

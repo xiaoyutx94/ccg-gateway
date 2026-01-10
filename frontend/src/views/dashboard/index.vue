@@ -155,13 +155,20 @@ async function fetchStats() {
   providerStats.value = providerRes.data
 }
 
+function formatLocalDate(d: Date): string {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 async function fetchChartData() {
   const today = new Date()
   const fiveDaysAgo = new Date(today)
   fiveDaysAgo.setDate(today.getDate() - 4)
   const params = {
-    start_date: fiveDaysAgo.toISOString().split('T')[0],
-    end_date: today.toISOString().split('T')[0]
+    start_date: formatLocalDate(fiveDaysAgo),
+    end_date: formatLocalDate(today)
   }
   const dailyRes = await statsApi.getDaily(params)
   dailyStats.value = dailyRes.data
@@ -176,7 +183,7 @@ function updateChart() {
   for (let i = 4; i >= 0; i--) {
     const d = new Date()
     d.setDate(d.getDate() - i)
-    dates.push(d.toISOString().split('T')[0])
+    dates.push(formatLocalDate(d))
   }
 
   // 汇总数据

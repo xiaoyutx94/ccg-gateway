@@ -6,7 +6,8 @@ import json
 import time
 import logging
 import asyncio
-from typing import Optional, AsyncIterator
+import fnmatch
+from typing import Optional, AsyncIterator, Tuple
 from urllib.parse import quote
 
 from app.services.routing_service import RoutingService
@@ -40,8 +41,9 @@ def _truncate_body(body: bytes, max_len: int = 2000) -> str:
 def _safe_headers(headers: dict) -> dict:
     """Mask sensitive headers for logging."""
     safe = {}
+    sensitive_headers = {"authorization", "x-goog-api-key"}
     for k, v in headers.items():
-        if k.lower() == "authorization":
+        if k.lower() in sensitive_headers:
             safe[k] = _mask_key(v) if v else ""
         else:
             safe[k] = v
@@ -50,7 +52,7 @@ def _safe_headers(headers: dict) -> dict:
 # Headers to filter out when forwarding
 FILTERED_HEADERS = {
     "host", "connection", "keep-alive", "transfer-encoding",
-    "te", "trailer", "upgrade"
+    "te", "trailer", "upgrade", "content-length"
 }
 
 # Shared HTTP client for connection pooling
@@ -75,6 +77,29 @@ class ProxyService:
         self.stats_service = StatsService(db)
         self.log_service = LogService(db)
 
+    def _apply_model_mapping(self, provider: Provider, body: bytes) -> Tuple[bytes, Optional[str]]:
+        """Apply model mapping to request body. Returns (new_body, original_model).
+
+        Supports wildcard matching with * (case-insensitive).
+        """
+        if not provider.model_maps:
+            return body, None
+
+        try:
+            data = json.loads(body)
+            if "model" not in data:
+                return body, None
+
+            original_model = data["model"]
+            for mm in provider.model_maps:
+                if mm.enabled and fnmatch.fnmatch(original_model.lower(), mm.source_model.lower()):
+                    data["model"] = mm.target_model
+                    return json.dumps(data, ensure_ascii=False).encode("utf-8"), original_model
+
+            return body, None
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            return body, None
+
     async def forward_request(self, request: Request, path: str) -> Response:
         """Forward request to upstream provider."""
         start_time = time.time()
@@ -85,7 +110,29 @@ class ProxyService:
         # Select provider
         provider = await self.routing_service.select_provider(cli_type)
         if not provider:
-            raise HTTPException(status_code=503, detail="No available provider")
+            logger.warning(f"No available provider for cli_type={cli_type}, all providers may be blacklisted")
+            # Log the rejected request
+            try:
+                body = await request.body()
+                client_headers = dict(request.headers)
+                await self.log_service.create_request_log(
+                    cli_type=cli_type,
+                    provider_name="[NO_PROVIDER]",
+                    client_method=request.method,
+                    client_path=path + (f"?{request.url.query}" if request.url.query else ""),
+                    client_headers=_safe_headers(client_headers),
+                    client_body=body.decode("utf-8", errors="replace"),
+                    forward_url="",
+                    forward_headers={},
+                    forward_body="",
+                    success=False,
+                    status_code=503,
+                    elapsed_ms=int((time.time() - start_time) * 1000),
+                    error_message=f"No available provider for {cli_type}"
+                )
+            except Exception as e:
+                logger.error(f"Failed to log rejected request: {e}")
+            raise HTTPException(status_code=503, detail=f"No available provider for {cli_type}")
 
         # Get settings
         timeouts = await self._get_timeout_settings()
@@ -102,11 +149,23 @@ class ProxyService:
             k: v for k, v in request.headers.items()
             if k.lower() not in FILTERED_HEADERS
         }
-        headers["authorization"] = f"Bearer {provider.api_key}"
+
+        # Set auth header based on CLI type
+        if cli_type == "gemini":
+            # Gemini uses x-goog-api-key header
+            headers.pop("authorization", None)
+            headers["x-goog-api-key"] = provider.api_key
+        else:
+            # Claude/Codex use Authorization Bearer
+            headers["authorization"] = f"Bearer {provider.api_key}"
 
         # Get request body
         body = await request.body()
         body_str = body.decode("utf-8", errors="replace")
+
+        # Apply model mapping
+        forward_body, original_model = self._apply_model_mapping(provider, body)
+        forward_body_str = forward_body.decode("utf-8", errors="replace")
 
         # Check if streaming
         is_stream = self._is_streaming_request(body)
@@ -121,12 +180,13 @@ class ProxyService:
             "client_body": body_str,
             "forward_url": upstream_url,
             "forward_headers": _safe_headers(headers),
-            "forward_body": body_str,
+            "forward_body": forward_body_str,
         }
 
         # Debug log: client request + forwarding request
         if debug_log:
             client_ip = request.client.host if request.client else "unknown"
+            model_info = f"\n  Model Mapping: {original_model} -> (mapped)" if original_model else ""
             logger.info(
                 f"\n{'='*60}\n"
                 f"[DEBUG] === CLIENT REQUEST ===\n"
@@ -137,9 +197,10 @@ class ProxyService:
                 f"  Headers: {json.dumps(_safe_headers(dict(request.headers)), indent=2, ensure_ascii=False)}\n"
                 f"  Body: {_truncate_body(body)}\n"
                 f"[DEBUG] === FORWARD REQUEST ===\n"
-                f"  Provider: {provider.name}\n"
+                f"  Provider: {provider.name}{model_info}\n"
                 f"  Upstream URL: {upstream_url}\n"
                 f"  Headers: {json.dumps(_safe_headers(headers), indent=2, ensure_ascii=False)}\n"
+                f"  Body: {_truncate_body(forward_body)}\n"
                 f"  Stream: {is_stream}\n"
                 f"{'='*60}"
             )
@@ -147,12 +208,12 @@ class ProxyService:
         try:
             if is_stream:
                 return await self._forward_streaming(
-                    provider, upstream_url, request.method, headers, body,
+                    provider, upstream_url, request.method, headers, forward_body,
                     timeouts, cli_type, start_time, debug_log, log_ctx
                 )
             else:
                 return await self._forward_non_streaming(
-                    provider, upstream_url, request.method, headers, body,
+                    provider, upstream_url, request.method, headers, forward_body,
                     timeouts, cli_type, start_time, debug_log, log_ctx
                 )
         except HTTPException:
@@ -414,6 +475,7 @@ class ProxyService:
         if "gemini" in user_agent:
             return "gemini"
 
+        logger.debug(f"Unknown user-agent, defaulting to claude_code: {user_agent}")
         return "claude_code"
 
     def _is_streaming_request(self, body: bytes) -> bool:

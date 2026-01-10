@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
 
 from app.core.config import settings
-from app.core.database import init_db
+from app.core.database import init_db, close_db
 from app.core.uptime import init_start_time
 from app.api.admin import admin_router
 from app.api.proxy import proxy_router
@@ -19,6 +19,7 @@ async def lifespan(app: FastAPI):
     await init_db()
     await init_default_data()
     yield
+    await close_db()
 
 
 app = FastAPI(

@@ -9,24 +9,16 @@ class CliType(str, Enum):
     GEMINI = "gemini"
 
 
-class ModelRole(str, Enum):
-    PRIMARY = "primary"
-    REASONING = "reasoning"
-    HAIKU = "haiku"
-    SONNET = "sonnet"
-    OPUS = "opus"
-
-
 # Provider Schemas
 class ModelMapCreate(BaseModel):
-    model_role: ModelRole
-    target_model: str
+    source_model: str = Field(..., min_length=1)
+    target_model: str = Field(..., min_length=1)
     enabled: bool = True
 
 
 class ModelMapResponse(BaseModel):
     id: int
-    model_role: ModelRole
+    source_model: str
     target_model: str
     enabled: bool
 

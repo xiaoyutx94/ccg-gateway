@@ -64,7 +64,7 @@ echo.
 
 :: Start backend (new window)
 echo [Backend] Starting... (port %GATEWAY_PORT%)
-start "CCG Gateway - Backend" cmd /k "cd /d %~dp0backend && call venv\Scripts\activate.bat && uvicorn app.main:app --host 127.0.0.1 --port %GATEWAY_PORT%"
+start "CCG Gateway - Backend" cmd /k "cd /d %~dp0backend && call venv\Scripts\activate.bat && uvicorn app.main:app --host 127.0.0.1 --port %GATEWAY_PORT% --reload"
 
 :: Wait for backend
 timeout /t 3 /nobreak >nul

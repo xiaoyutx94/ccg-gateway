@@ -41,7 +41,7 @@ class ProviderService:
             model_maps = [
                 ModelMapResponse(
                     id=m.id,
-                    model_role=m.model_role,
+                    source_model=m.source_model,
                     target_model=m.target_model,
                     enabled=bool(m.enabled)
                 ) for m in p.model_maps
@@ -76,7 +76,7 @@ class ProviderService:
         model_maps = [
             ModelMapResponse(
                 id=m.id,
-                model_role=m.model_role,
+                source_model=m.source_model,
                 target_model=m.target_model,
                 enabled=bool(m.enabled)
             ) for m in p.model_maps
@@ -131,7 +131,7 @@ class ProviderService:
         for mm in data.model_maps:
             model_map = ProviderModelMap(
                 provider_id=provider_id,
-                model_role=mm.model_role.value,
+                source_model=mm.source_model,
                 target_model=mm.target_model,
                 enabled=1 if mm.enabled else 0
             )
@@ -165,7 +165,7 @@ class ProviderService:
             for mm in data.model_maps:
                 model_map = ProviderModelMap(
                     provider_id=provider_id,
-                    model_role=mm.model_role.value,
+                    source_model=mm.source_model,
                     target_model=mm.target_model,
                     enabled=1 if mm.enabled else 0
                 )
