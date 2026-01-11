@@ -334,11 +334,12 @@ def sync_claude_settings(base_url: str, api_key: str, default_json_config: str, 
         return True
 
     try:
+        # 读取现有配置，处理文件为空的情况
+        data = {}
         if settings_path.exists():
-            with open(settings_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        else:
-            data = {}
+            content = settings_path.read_text(encoding='utf-8').strip()
+            if content:
+                data = json.loads(content)
 
         if enabled:
             if "env" not in data:
@@ -346,21 +347,29 @@ def sync_claude_settings(base_url: str, api_key: str, default_json_config: str, 
             data["env"]["ANTHROPIC_BASE_URL"] = base_url
             data["env"]["ANTHROPIC_AUTH_TOKEN"] = api_key
 
-            # 合并用户自定义配置
-            try:
-                custom_config = json.loads(default_json_config) if default_json_config else {}
-                for key, value in custom_config.items():
-                    if key == "env" and isinstance(value, dict):
-                        data["env"].update(value)
-                    else:
-                        data[key] = value
-            except json.JSONDecodeError:
-                pass
+            # 合并用户自定义配置（仅当配置非空时）
+            if default_json_config and default_json_config.strip():
+                try:
+                    custom_config = json.loads(default_json_config)
+                    for key, value in custom_config.items():
+                        if key == "env" and isinstance(value, dict):
+                            data["env"].update(value)
+                        else:
+                            data[key] = value
+                except json.JSONDecodeError:
+                    pass
         else:
             # 禁用时移除配置
             if "env" in data:
                 data["env"].pop("ANTHROPIC_BASE_URL", None)
                 data["env"].pop("ANTHROPIC_AUTH_TOKEN", None)
+            # 移除自定义配置中的字段
+            if default_json_config and default_json_config.strip():
+                try:
+                    custom_config = json.loads(default_json_config)
+                    _remove_keys(data, custom_config)
+                except json.JSONDecodeError:
+                    pass
 
         with open(settings_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
@@ -436,9 +445,23 @@ def sync_codex_settings(base_url: str, api_key: str, default_toml_config: str, e
                 data["model_providers"].pop(CODEX_PROVIDER_KEY, None)
             if data.get("model_provider") == CODEX_PROVIDER_KEY:
                 data.pop("model_provider", None)
-            # 移除 auth.json
+            # 移除 auth.json 中的 OPENAI_API_KEY 字段
             if auth_path.exists():
-                auth_path.unlink()
+                try:
+                    with open(auth_path, 'r', encoding='utf-8') as f:
+                        auth_data = json.load(f)
+                    auth_data.pop(CODEX_AUTH_KEY, None)
+                    with open(auth_path, 'w', encoding='utf-8') as f:
+                        json.dump(auth_data, f, indent=2)
+                except (json.JSONDecodeError, IOError):
+                    pass
+            # 移除自定义配置中的字段
+            if default_toml_config and default_toml_config.strip():
+                try:
+                    custom_config = tomli.loads(default_toml_config)
+                    _remove_keys(data, custom_config)
+                except tomli.TOMLDecodeError:
+                    pass
 
         with open(config_path, 'wb') as f:
             tomli_w.dump(data, f)
@@ -459,6 +482,18 @@ def _deep_merge(base: dict, override: dict) -> None:
             base[key] = value
 
 
+def _remove_keys(base: dict, keys_to_remove: dict) -> None:
+    """从 base 中移除 keys_to_remove 指定的键"""
+    for key, value in keys_to_remove.items():
+        if key in base:
+            if isinstance(value, dict) and isinstance(base[key], dict):
+                _remove_keys(base[key], value)
+                if not base[key]:
+                    del base[key]
+            else:
+                del base[key]
+
+
 def sync_gemini_settings(base_url: str, api_key: str, default_json_config: str, enabled: bool) -> bool:
     """同步 Gemini CLI 配置"""
     settings_path = get_gemini_settings_path()
@@ -468,11 +503,12 @@ def sync_gemini_settings(base_url: str, api_key: str, default_json_config: str, 
         return True
 
     try:
+        # 读取现有配置，处理文件为空的情况
+        data = {}
         if settings_path.exists():
-            with open(settings_path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-        else:
-            data = {}
+            content = settings_path.read_text(encoding='utf-8').strip()
+            if content:
+                data = json.loads(content)
 
         env_path = settings_path.parent / ".env"
         if enabled:
@@ -484,18 +520,47 @@ def sync_gemini_settings(base_url: str, api_key: str, default_json_config: str, 
             with open(env_path, 'w', encoding='utf-8') as f:
                 f.write('\n'.join(env_lines))
 
-            try:
-                custom_config = json.loads(default_json_config) if default_json_config else {}
-                data.update(custom_config)
-            except json.JSONDecodeError:
-                pass
+            # 设置认证类型
+            if "security" not in data:
+                data["security"] = {}
+            if "auth" not in data["security"]:
+                data["security"]["auth"] = {}
+            data["security"]["auth"]["selectedType"] = "gemini-api-key"
+
+            # 合并用户自定义配置（仅当配置非空时）
+            if default_json_config and default_json_config.strip():
+                try:
+                    custom_config = json.loads(default_json_config)
+                    _deep_merge(data, custom_config)
+                except json.JSONDecodeError:
+                    pass
 
             with open(settings_path, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
         else:
+            # 禁用时清空 .env 文件
             if env_path.exists():
                 with open(env_path, 'w', encoding='utf-8') as f:
                     f.write("")
+            # 移除 settings.json 中的认证配置
+            if settings_path.exists():
+                if "security" in data and "auth" in data["security"]:
+                    data["security"]["auth"].pop("selectedType", None)
+                    # 如果 auth 为空，移除 auth
+                    if not data["security"]["auth"]:
+                        data["security"].pop("auth", None)
+                    # 如果 security 为空，移除 security
+                    if not data["security"]:
+                        data.pop("security", None)
+                # 移除自定义配置中的字段
+                if default_json_config and default_json_config.strip():
+                    try:
+                        custom_config = json.loads(default_json_config)
+                        _remove_keys(data, custom_config)
+                    except json.JSONDecodeError:
+                        pass
+                with open(settings_path, 'w', encoding='utf-8') as f:
+                    json.dump(data, f, indent=2, ensure_ascii=False)
 
         logger.info(f"已同步 Gemini CLI 配置 (enabled={enabled})")
         return True

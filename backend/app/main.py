@@ -1,3 +1,4 @@
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
@@ -18,8 +19,12 @@ async def lifespan(app: FastAPI):
     init_start_time()
     await init_db()
     await init_default_data()
-    yield
-    await close_db()
+    try:
+        yield
+    except asyncio.CancelledError:
+        pass
+    finally:
+        await close_db()
 
 
 app = FastAPI(

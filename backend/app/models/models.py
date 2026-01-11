@@ -75,7 +75,7 @@ class CliSettings(Base):
 
     cli_type = Column(String(20), primary_key=True)  # claude_code, codex, gemini
     enabled = Column(Integer, nullable=False, default=0)
-    default_json_config = Column(Text, nullable=False, default="{}")
+    default_json_config = Column(Text, nullable=False, default="")
     updated_at = Column(Integer, nullable=False)
 
     __table_args__ = (

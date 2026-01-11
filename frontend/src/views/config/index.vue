@@ -4,7 +4,7 @@
       <!-- Timeout Settings -->
       <el-col :span="12">
         <el-card class="config-card">
-          <template #header>超时配置</template>
+          <template #header>全局配置</template>
           <el-form :model="timeoutForm" label-width="140px">
             <el-form-item label="流式首字节超时">
               <el-input-number v-model="timeoutForm.stream_first_byte_timeout" :min="1" />

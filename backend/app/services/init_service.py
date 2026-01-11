@@ -36,7 +36,7 @@ async def init_default_data():
             if not result.scalar_one_or_none():
                 cli = CliSettings(
                     cli_type=cli_type,
-                    default_json_config="{}",
+                    default_json_config="",
                     updated_at=now
                 )
                 db.add(cli)
