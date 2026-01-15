@@ -223,6 +223,8 @@ class RequestLogListItem(BaseModel):
     success: bool
     status_code: Optional[int]
     elapsed_ms: int
+    input_tokens: int = 0
+    output_tokens: int = 0
     client_method: str
     client_path: str
 
@@ -239,6 +241,8 @@ class RequestLogDetail(BaseModel):
     success: bool
     status_code: Optional[int]
     elapsed_ms: int
+    input_tokens: int = 0
+    output_tokens: int = 0
     client_method: str
     client_path: str
     client_headers: str

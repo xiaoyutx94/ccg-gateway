@@ -67,7 +67,9 @@
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="total_tokens" label="Token" width="100" />
+            <el-table-column label="Token" width="100">
+              <template #default="{ row }">{{ formatTokens(row.total_tokens) }}</template>
+            </el-table-column>
           </el-table>
         </el-card>
       </el-col>
@@ -124,13 +126,19 @@ const kpiList = computed(() => {
   return [
     { key: 'requests', label: '总请求数', value: totalRequests.toLocaleString(), change: 0, changeType: '' },
     { key: 'success', label: '整体成功率', value: successRate.toFixed(1) + '%', change: 0, changeType: '' },
-    { key: 'tokens', label: 'Token 消耗', value: totalTokens.toLocaleString(), change: 0, changeType: '' },
+    { key: 'tokens', label: 'Token 消耗', value: formatTokens(totalTokens), change: 0, changeType: '' },
     { key: 'providers', label: '活跃服务商', value: activeProviders, change: 0, changeType: '' }
   ]
 })
 
 function getCliEnabled(cliType: string): boolean {
   return settingsStore.settings?.cli_settings?.[cliType]?.enabled ?? false
+}
+
+function formatTokens(tokens: number): string {
+  if (!tokens) return '0'
+  if (tokens < 1000) return tokens.toString()
+  return (tokens / 1000).toFixed(1) + 'K'
 }
 
 async function handleCliToggle(cliType: string, enabled: boolean) {

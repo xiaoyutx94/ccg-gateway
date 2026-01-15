@@ -275,7 +275,7 @@ class ProxyService:
                     f"  Elapsed: {elapsed}ms\n"
                 )
             await self.provider_service.record_failure(provider.id)
-            await self.stats_service.record_request(provider.id, cli_type, False)
+            await self.stats_service.record_request(provider.id, cli_type, False, 0, 0)
             # Record error log
             if debug_log:
                 try:
@@ -317,7 +317,7 @@ class ProxyService:
             if debug_log:
                 logger.info(f"\n[DEBUG] === ERROR RESPONSE ===\n  Body: {_truncate_body(error_body)}\n  Elapsed: {elapsed}ms\n")
             await self.provider_service.record_failure(provider.id)
-            await self.stats_service.record_request(provider.id, cli_type, False)
+            await self.stats_service.record_request(provider.id, cli_type, False, 0, 0)
             # Record error log
             try:
                 await self.log_service.create_request_log(
@@ -339,6 +339,7 @@ class ProxyService:
         first_byte_time: Optional[float] = None
         total_bytes = 0
         collected_chunks: list[bytes] = []
+        usage = {"input": 0, "output": 0}
 
         # 透传上游响应头（过滤 hop-by-hop 头）
         resp_headers = {
@@ -349,7 +350,7 @@ class ProxyService:
         resp_headers["X-CCG-Provider"] = quote(provider.name, safe="")
 
         async def stream_generator() -> AsyncIterator[bytes]:
-            nonlocal first_byte_time, total_bytes, collected_chunks
+            nonlocal first_byte_time, total_bytes, collected_chunks, usage
             first_byte_received = False
             success = False
             error_msg = None
@@ -376,6 +377,7 @@ class ProxyService:
 
                     total_bytes += len(chunk)
                     collected_chunks.append(chunk)
+                    self._parse_sse_usage(chunk, cli_type, usage)
                     yield chunk
 
             except httpx.TimeoutException:
@@ -389,12 +391,16 @@ class ProxyService:
             finally:
                 await response.aclose()
                 elapsed = int((time.time() - start_time) * 1000)
+                # Re-parse usage from complete response (chunks may have been split)
+                if collected_chunks and (usage["input"] == 0 and usage["output"] == 0):
+                    full_response = b"".join(collected_chunks)
+                    self._parse_sse_usage(full_response, cli_type, usage)
                 if success:
                     await self.provider_service.record_success(provider.id)
-                    await self.stats_service.record_request(provider.id, cli_type, True)
+                    await self.stats_service.record_request(provider.id, cli_type, True, usage["input"], usage["output"])
                 else:
                     await self.provider_service.record_failure(provider.id)
-                    await self.stats_service.record_request(provider.id, cli_type, False)
+                    await self.stats_service.record_request(provider.id, cli_type, False, 0, 0)
 
                 if debug_log:
                     ttfb = (first_byte_time - start_time) * 1000 if first_byte_time else 0
@@ -402,6 +408,8 @@ class ProxyService:
                         f"\n[DEBUG] === FORWARD RESULT (streaming) ===\n"
                         f"  Provider: {provider.name}\n"
                         f"  Success: {success}\n"
+                        f"  Input Tokens: {usage['input']}\n"
+                        f"  Output Tokens: {usage['output']}\n"
                         f"  Total Bytes: {total_bytes}\n"
                         f"  TTFB: {ttfb:.2f}ms\n"
                         f"  Total Elapsed: {elapsed}ms\n"
@@ -414,6 +422,8 @@ class ProxyService:
                             success=success,
                             status_code=response.status_code,
                             elapsed_ms=elapsed,
+                            input_tokens=usage["input"],
+                            output_tokens=usage["output"],
                             provider_status=response.status_code,
                             provider_headers=dict(response.headers),
                             provider_body=f"[streaming] {total_bytes} bytes",
@@ -446,6 +456,10 @@ class ProxyService:
             elapsed = int((time.time() - start_time) * 1000)
             response_body = response.content.decode("utf-8", errors="replace")
 
+            # Parse token usage
+            usage = {"input": 0, "output": 0}
+            self._parse_sse_usage(response.content, cli_type, usage)
+
             if debug_log:
                 logger.info(
                     f"\n[DEBUG] === PROVIDER RESPONSE ===\n"
@@ -455,6 +469,8 @@ class ProxyService:
                     f"[DEBUG] === FORWARD RESULT ===\n"
                     f"  Provider: {provider.name}\n"
                     f"  Status: {response.status_code}\n"
+                    f"  Input Tokens: {usage['input']}\n"
+                    f"  Output Tokens: {usage['output']}\n"
                     f"  Response Size: {len(response.content)} bytes\n"
                     f"  Elapsed: {elapsed}ms\n"
                 )
@@ -462,10 +478,10 @@ class ProxyService:
             success = response.status_code < 400
             if success:
                 await self.provider_service.record_success(provider.id)
-                await self.stats_service.record_request(provider.id, cli_type, True)
+                await self.stats_service.record_request(provider.id, cli_type, True, usage["input"], usage["output"])
             else:
                 await self.provider_service.record_failure(provider.id)
-                await self.stats_service.record_request(provider.id, cli_type, False)
+                await self.stats_service.record_request(provider.id, cli_type, False, 0, 0)
 
             # Record log
             if debug_log:
@@ -475,6 +491,8 @@ class ProxyService:
                         success=success,
                         status_code=response.status_code,
                         elapsed_ms=elapsed,
+                        input_tokens=usage["input"],
+                        output_tokens=usage["output"],
                         provider_status=response.status_code,
                         provider_headers=dict(response.headers),
                         provider_body=response_body,
@@ -514,7 +532,7 @@ class ProxyService:
                 except:
                     pass
             await self.provider_service.record_failure(provider.id)
-            await self.stats_service.record_request(provider.id, cli_type, False)
+            await self.stats_service.record_request(provider.id, cli_type, False, 0, 0)
             raise HTTPException(status_code=504, detail="Upstream timeout")
 
     def _detect_cli_type(self, request: Request, path: str) -> str:
@@ -542,6 +560,58 @@ class ProxyService:
             return data.get("stream", False)
         except:
             return False
+
+    def _parse_sse_usage(self, chunk: bytes, cli_type: str, usage: dict) -> None:
+        """Parse SSE chunk or JSON response for token usage."""
+        try:
+            text = chunk.decode("utf-8", errors="replace")
+            data_list = []
+
+            # Try SSE format first
+            for line in text.split("\n"):
+                if line.startswith("data: "):
+                    data_str = line[6:].strip()
+                    if data_str and data_str != "[DONE]":
+                        try:
+                            data_list.append(json.loads(data_str))
+                        except:
+                            pass
+
+            # If no SSE data found, try parsing as plain JSON
+            if not data_list:
+                try:
+                    data_list.append(json.loads(text.strip()))
+                except:
+                    pass
+
+            for data in data_list:
+                if cli_type == "claude_code":
+                    # message_start: message.usage has input_tokens
+                    msg_usage = data.get("message", {}).get("usage", {})
+                    if "input_tokens" in msg_usage:
+                        usage["input"] = msg_usage["input_tokens"]
+                    if "output_tokens" in msg_usage:
+                        usage["output"] = msg_usage["output_tokens"]
+                    # message_delta: usage has output_tokens only
+                    direct_usage = data.get("usage", {})
+                    if "input_tokens" in direct_usage:
+                        usage["input"] = direct_usage["input_tokens"]
+                    if "output_tokens" in direct_usage:
+                        usage["output"] = direct_usage["output_tokens"]
+                elif cli_type == "codex":
+                    resp_usage = data.get("response", {}).get("usage", {})
+                    if "input_tokens" in resp_usage:
+                        usage["input"] = resp_usage["input_tokens"]
+                    if "output_tokens" in resp_usage:
+                        usage["output"] = resp_usage["output_tokens"]
+                elif cli_type == "gemini":
+                    meta = data.get("usageMetadata", {})
+                    if "promptTokenCount" in meta:
+                        usage["input"] = meta["promptTokenCount"]
+                    if "candidatesTokenCount" in meta:
+                        usage["output"] = meta["candidatesTokenCount"]
+        except:
+            pass
 
     async def _get_timeout_settings(self) -> TimeoutSettings:
         """Get timeout settings from database."""

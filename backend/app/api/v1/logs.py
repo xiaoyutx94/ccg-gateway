@@ -48,6 +48,8 @@ async def list_request_logs(
             success=bool(log.success),
             status_code=log.status_code,
             elapsed_ms=log.elapsed_ms,
+            input_tokens=log.input_tokens,
+            output_tokens=log.output_tokens,
             client_method=log.client_method,
             client_path=log.client_path
         ) for log in logs
@@ -71,6 +73,8 @@ async def get_request_log(log_id: int, db: AsyncSession = Depends(get_db)):
         success=bool(log.success),
         status_code=log.status_code,
         elapsed_ms=log.elapsed_ms,
+        input_tokens=log.input_tokens,
+        output_tokens=log.output_tokens,
         client_method=log.client_method,
         client_path=log.client_path,
         client_headers=log.client_headers,

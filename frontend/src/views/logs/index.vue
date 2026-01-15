@@ -68,8 +68,14 @@
             <el-table-column label="耗时" width="90">
               <template #default="{ row }">{{ row.elapsed_ms }}ms</template>
             </el-table-column>
-            <el-table-column prop="client_method" label="方法" width="70" />
-            <el-table-column prop="client_path" label="路径" show-overflow-tooltip />
+            <el-table-column label="Tokens" width="140">
+              <template #default="{ row }">
+                <span v-if="row.input_tokens || row.output_tokens">
+                  {{ formatTokens(row.input_tokens) }} / {{ formatTokens(row.output_tokens) }}
+                </span>
+                <span v-else>-</span>
+              </template>
+            </el-table-column>
             <el-table-column label="操作" width="80" fixed="right">
               <template #default="{ row }">
                 <el-button type="primary" link @click="showRequestDetail(row.id)">详情</el-button>
@@ -171,6 +177,8 @@
           <el-descriptions-item label="CLI类型">{{ requestDetail.cli_type }}</el-descriptions-item>
           <el-descriptions-item label="服务商">{{ requestDetail.provider_name }}</el-descriptions-item>
           <el-descriptions-item label="模型">{{ requestDetail.model_id || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="Input Tokens">{{ formatTokens(requestDetail.input_tokens) }}</el-descriptions-item>
+          <el-descriptions-item label="Output Tokens">{{ formatTokens(requestDetail.output_tokens) }}</el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag :type="requestDetail.success ? 'success' : 'danger'" size="small">
               {{ requestDetail.success ? '成功' : '失败' }}
@@ -482,6 +490,12 @@ function getLevelType(level: string): string {
     case 'WARN': return 'warning'
     default: return 'info'
   }
+}
+
+function formatTokens(tokens: number | undefined): string {
+  if (!tokens) return '0'
+  if (tokens < 1000) return tokens.toString()
+  return (tokens / 1000).toFixed(1) + 'K'
 }
 
 function getStatusType(status: number | null): string {

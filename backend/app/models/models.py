@@ -156,6 +156,8 @@ class RequestLog(Base):
     success = Column(Integer, nullable=False, default=1)
     status_code = Column(Integer, nullable=True)
     elapsed_ms = Column(Integer, nullable=False, default=0)
+    input_tokens = Column(Integer, nullable=False, default=0)
+    output_tokens = Column(Integer, nullable=False, default=0)
     # CLI request
     client_method = Column(String(10), nullable=False)
     client_path = Column(String(500), nullable=False)

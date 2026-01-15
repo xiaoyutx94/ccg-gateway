@@ -177,6 +177,8 @@ export interface RequestLogListItem {
   success: boolean
   status_code: number | null
   elapsed_ms: number
+  input_tokens: number
+  output_tokens: number
   client_method: string
   client_path: string
 }
