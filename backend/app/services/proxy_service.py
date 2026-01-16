@@ -600,17 +600,20 @@ class ProxyService:
                     if "output_tokens" in direct_usage:
                         usage["output"] = direct_usage["output_tokens"]
                 elif cli_type == "codex":
-                    resp_usage = data.get("response", {}).get("usage", {})
-                    if "input_tokens" in resp_usage:
-                        usage["input"] = resp_usage["input_tokens"]
-                    if "output_tokens" in resp_usage:
-                        usage["output"] = resp_usage["output_tokens"]
+                    # Only response.completed event contains usage data
+                    if data.get("type") == "response.completed":
+                        resp_usage = data.get("response", {}).get("usage", {})
+                        if "input_tokens" in resp_usage:
+                            usage["input"] = resp_usage["input_tokens"]
+                        if "output_tokens" in resp_usage:
+                            usage["output"] = resp_usage["output_tokens"]
                 elif cli_type == "gemini":
                     meta = data.get("usageMetadata", {})
                     if "promptTokenCount" in meta:
                         usage["input"] = meta["promptTokenCount"]
-                    if "candidatesTokenCount" in meta:
-                        usage["output"] = meta["candidatesTokenCount"]
+                    output_tokens = meta.get("candidatesTokenCount", 0) + meta.get("thoughtsTokenCount", 0)
+                    if output_tokens > 0:
+                        usage["output"] = output_tokens
         except:
             pass
 
