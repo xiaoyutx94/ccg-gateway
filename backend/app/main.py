@@ -9,9 +9,22 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+from app.core.config import settings, get_data_dir
 
-from app.core.config import settings
+
+def setup_logging():
+    handlers = [logging.StreamHandler()]
+    if settings.LOG_TO_FILE:
+        log_file = get_data_dir() / "app.log"
+        handlers.append(logging.FileHandler(log_file, encoding='utf-8'))
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+        handlers=handlers,
+    )
+
+
+setup_logging()
 from app.core.database import init_db, close_db
 from app.core.uptime import init_start_time
 from app.api.admin import admin_router

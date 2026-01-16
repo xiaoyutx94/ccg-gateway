@@ -1,5 +1,6 @@
 import os
 import sys
+import socket
 import threading
 import time
 
@@ -15,12 +16,18 @@ import uvicorn
 import webview
 from desktop.tray import TrayIcon
 from app.main import app as fastapi_app
+from app.core.config import settings
+
+
+def is_port_in_use(port: int) -> bool:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        return s.connect_ex(("127.0.0.1", port)) == 0
 
 
 class Server:
-    def __init__(self, host="127.0.0.1", port=7788):
+    def __init__(self, host="127.0.0.1", port=None):
         self.host = host
-        self.port = port
+        self.port = port or settings.GATEWAY_PORT
         self.server = None
 
     def run(self):
@@ -60,9 +67,20 @@ class App:
         return True  # Allow window destruction
 
     def quit(self):
-        self.tray.stop()
-        if self.window:
-            self.window.destroy()
+        def _exit():
+            import time
+            time.sleep(0.1)
+            os._exit(0)
+        threading.Thread(target=_exit, daemon=True).start()
+        try:
+            self.tray.stop()
+        except:
+            pass
+        try:
+            if self.window:
+                self.window.destroy()
+        except:
+            pass
 
     def run(self):
         # Start FastAPI server
@@ -86,6 +104,11 @@ class App:
 
 
 def main():
+    port = settings.GATEWAY_PORT
+    if is_port_in_use(port):
+        print(f"Port {port} is already in use. CCG Gateway may already be running.")
+        sys.exit(1)
+
     app = App()
     app.run()
 

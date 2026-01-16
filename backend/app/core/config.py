@@ -1,6 +1,23 @@
-import os
+import sys
 from pathlib import Path
 from pydantic_settings import BaseSettings
+
+
+def get_base_dir() -> Path:
+    """Get base directory, handling PyInstaller bundled mode."""
+    if getattr(sys, 'frozen', False):
+        return Path(sys.executable).parent
+    return Path(__file__).resolve().parent.parent.parent
+
+
+def get_data_dir() -> Path:
+    return get_base_dir() / "data"
+
+
+def get_env_file() -> Path:
+    if getattr(sys, 'frozen', False):
+        return get_base_dir() / ".env"
+    return get_base_dir().parent / ".env"
 
 
 class Settings(BaseSettings):
@@ -19,14 +36,17 @@ class Settings(BaseSettings):
     STREAM_IDLE_TIMEOUT: int = 60
     NON_STREAM_TIMEOUT: int = 120
 
+    # Logging
+    LOG_TO_FILE: bool = False
+
     class Config:
-        env_file = ".env"
+        env_file = get_env_file()
         case_sensitive = True
+        extra = "ignore"
 
 
 settings = Settings()
 
 # Ensure data directory exists
-BASE_DIR = Path(__file__).resolve().parent.parent.parent
-DATA_DIR = BASE_DIR / "data"
+DATA_DIR = get_data_dir()
 DATA_DIR.mkdir(exist_ok=True)
