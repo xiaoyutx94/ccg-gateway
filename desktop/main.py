@@ -63,7 +63,6 @@ class App:
     def show_window(self):
         if self.window:
             self.window.show()
-            self.window.restore()
 
     def hide_window(self):
         if self.window:
