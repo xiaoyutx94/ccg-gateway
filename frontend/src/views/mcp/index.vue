@@ -110,11 +110,16 @@ function handleEdit(mcp: Mcp) {
 
 async function handleSave() {
   try {
+    const data = {
+      name: form.value.name.trim(),
+      config_json: form.value.config_json.trim()
+    }
+
     if (editingMcp.value) {
-      await mcpApi.update(editingMcp.value.id, form.value)
+      await mcpApi.update(editingMcp.value.id, data)
       ElMessage.success('更新成功')
     } else {
-      await mcpApi.create(form.value)
+      await mcpApi.create(data)
       ElMessage.success('添加成功')
     }
     showDialog.value = false

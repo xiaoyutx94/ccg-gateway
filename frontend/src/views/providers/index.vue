@@ -217,8 +217,8 @@ function buildModelMaps(): ModelMap[] {
   return form.value.model_maps
     .filter(m => m.source_model && m.target_model)
     .map(m => ({
-      source_model: m.source_model,
-      target_model: m.target_model,
+      source_model: m.source_model.trim(),
+      target_model: m.target_model.trim(),
       enabled: true
     }))
 }
@@ -226,9 +226,9 @@ function buildModelMaps(): ModelMap[] {
 async function handleSave() {
   const data = {
     cli_type: activeCliType.value,
-    name: form.value.name,
-    base_url: form.value.base_url,
-    api_key: form.value.api_key,
+    name: form.value.name.trim(),
+    base_url: form.value.base_url.trim(),
+    api_key: form.value.api_key.trim(),
     failure_threshold: form.value.failure_threshold,
     blacklist_minutes: form.value.blacklist_minutes,
     model_maps: buildModelMaps()

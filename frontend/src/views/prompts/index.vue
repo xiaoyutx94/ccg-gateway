@@ -110,11 +110,16 @@ function handleEdit(prompt: Prompt) {
 
 async function handleSave() {
   try {
+    const data = {
+      name: form.value.name.trim(),
+      content: form.value.content.trim()
+    }
+
     if (editingPrompt.value) {
-      await promptsApi.update(editingPrompt.value.id, form.value)
+      await promptsApi.update(editingPrompt.value.id, data)
       ElMessage.success('更新成功')
     } else {
-      await promptsApi.create(form.value)
+      await promptsApi.create(data)
       ElMessage.success('添加成功')
     }
     showDialog.value = false
