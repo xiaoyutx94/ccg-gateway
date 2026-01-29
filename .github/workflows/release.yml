@@ -56,13 +56,14 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
       
+      - name: Install Tauri CLI
+        run: pnpm add -g @tauri-apps/cli@^2.0.0
+      
       - name: Build Tauri App
+        run: pnpm tauri build
         env:
           TAURI_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
-        run: |
-          cd src-tauri
-          cargo tauri build
       
       - name: Upload artifacts (Windows)
         if: matrix.platform == 'windows-latest'
