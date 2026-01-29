@@ -56,11 +56,14 @@ jobs:
         with:
           workspaces: './src-tauri -> target'
       
-      - name: Install dependencies
+      - name: Install root dependencies
+        run: pnpm install
+      
+      - name: Install frontend dependencies
         run: pnpm --dir frontend install
       
       - name: Build Tauri App
-        run: pnpm --dir frontend tauri build
+        run: pnpm tauri build
         env:
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_KEY_PASSWORD }}
