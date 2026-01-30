@@ -40,15 +40,24 @@
           <span>提示词管理</span>
         </el-menu-item>
       </el-menu>
+      <div class="sidebar-footer">
+        <span class="version">v{{ appVersion }}</span>
+      </div>
     </el-aside>
     <el-container>
       <el-header class="header">
         <div class="header-content">
           <span class="page-title">{{ pageTitle }}</span>
           <div class="header-right">
-            <el-tag type="info" effect="plain">
-              运行时间 {{ formatUptime(dashboardStore.uptime) }}
-            </el-tag>
+            <el-button 
+              type="primary" 
+              link 
+              :icon="Refresh" 
+              @click="handleCheckUpdate"
+              :loading="checkingUpdate"
+            >
+              检查更新
+            </el-button>
           </div>
         </div>
       </el-header>
@@ -60,12 +69,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
-import { useDashboardStore } from '@/stores/dashboard'
+import { getVersion } from '@tauri-apps/api/app'
+import { Refresh } from '@element-plus/icons-vue'
+import { checkForUpdates } from '@/utils/updater'
 
 const route = useRoute()
-const dashboardStore = useDashboardStore()
+
+const appVersion = ref('0.0.0')
+const checkingUpdate = ref(false)
 
 const activeMenu = computed(() => route.path)
 
@@ -82,17 +95,21 @@ const pageTitle = computed(() => {
   return titles[route.path] || 'CCG Gateway'
 })
 
-function formatUptime(seconds: number): string {
-  const hours = Math.floor(seconds / 3600)
-  const minutes = Math.floor((seconds % 3600) / 60)
-  const secs = seconds % 60
-  if (hours > 0) return `${hours}h ${minutes}m ${secs}s`
-  if (minutes > 0) return `${minutes}m ${secs}s`
-  return `${secs}s`
+async function handleCheckUpdate() {
+  checkingUpdate.value = true
+  try {
+    await checkForUpdates(false)
+  } finally {
+    checkingUpdate.value = false
+  }
 }
 
-onMounted(() => {
-  dashboardStore.fetchStatus()
+onMounted(async () => {
+  // 获取应用版本
+  appVersion.value = await getVersion()
+  
+  // 静默检查更新
+  checkForUpdates(true)
 })
 </script>
 
@@ -103,6 +120,7 @@ onMounted(() => {
 
 .sidebar {
   background-color: #304156;
+  position: relative;
 }
 
 .logo {
@@ -116,6 +134,21 @@ onMounted(() => {
 .logo h2 {
   margin: 0;
   font-size: 18px;
+}
+
+.sidebar-footer {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 12px;
+  text-align: center;
+  border-top: 1px solid #3d4a5a;
+}
+
+.version {
+  color: #8a9aad;
+  font-size: 12px;
 }
 
 .header {

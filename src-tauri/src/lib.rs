@@ -13,7 +13,6 @@ use tauri::tray::{TrayIconBuilder, TrayIconEvent};
 
 // Type wrappers for Tauri state
 pub struct LogDb(pub SqlitePool);
-pub struct StartTime(pub i64);
 
 impl std::ops::Deref for LogDb {
     type Target = SqlitePool;
@@ -25,7 +24,6 @@ impl std::ops::Deref for LogDb {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let config = Config::load();
-    let start_time = chrono::Utc::now().timestamp();
 
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
@@ -49,7 +47,6 @@ pub fn run() {
 
                 app.manage(db.clone());
                 app.manage(LogDb(log_db.clone()));
-                app.manage(StartTime(start_time));
 
                 // Start HTTP server for proxy
                 let state = api::AppState {
@@ -60,7 +57,6 @@ pub fn run() {
                 let router = api::create_router(state);
                 let addr = format!("{}:{}", config.server.host, config.server.port);
 
-            let log_db_clone = log_db.clone();
             tokio::spawn(async move {
                 // Bind listener with better error handling
                 let listener = match tokio::net::TcpListener::bind(&addr).await {
@@ -73,16 +69,6 @@ pub fn run() {
                         panic!("Cannot bind to address {}: {}", addr, e);
                     }
                 };
-
-                // Log gateway startup
-                let _ = crate::services::stats::record_system_log(
-                    &log_db_clone,
-                    "info",
-                    "gateway_started",
-                    &format!("CCG Gateway 已在 {} 启动", addr),
-                    None,
-                    None,
-                ).await;
 
                 if let Err(e) = axum::serve(listener, router).await {
                     tracing::error!("Gateway server error: {}", e);

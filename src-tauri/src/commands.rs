@@ -1197,12 +1197,11 @@ pub async fn clear_system_logs(log_db: State<'_, crate::LogDb>) -> Result<()> {
 
 // System status
 #[tauri::command]
-pub async fn get_system_status(start_time: State<'_, crate::StartTime>) -> Result<SystemStatus> {
-    let uptime = chrono::Utc::now().timestamp() - start_time.0;
+pub async fn get_system_status() -> Result<SystemStatus> {
     Ok(SystemStatus {
         status: "running".to_string(),
         port: 7788,
-        uptime,
+        uptime: 0,
         version: env!("CARGO_PKG_VERSION").to_string(),
     })
 }
