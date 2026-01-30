@@ -29,7 +29,7 @@ echo [Starting] Launching Tauri development environment...
 echo [INFO] First run may take longer to compile dependencies
 echo [INFO] Frontend will start automatically (http://localhost:7786)
 echo.
-set RUST_LOG=info,ccg_gateway=debug,ccg_gateway_lib=debug
+set CCG_LOG_LEVEL=info,ccg_gateway=debug,ccg_gateway_lib=debug
 tauri dev
 
 if %errorlevel% neq 0 (

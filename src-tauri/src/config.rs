@@ -24,14 +24,14 @@ pub struct DatabaseConfig {
 }
 
 fn default_port() -> u16 {
-    std::env::var("GATEWAY_PORT")
+    std::env::var("CCG_GATEWAY_PORT")
         .ok()
         .and_then(|p| p.parse().ok())
         .unwrap_or(7788)
 }
 
 fn default_host() -> String {
-    std::env::var("GATEWAY_HOST").unwrap_or_else(|_| "127.0.0.1".into())
+    std::env::var("CCG_GATEWAY_HOST").unwrap_or_else(|_| "127.0.0.1".into())
 }
 
 fn default_db_path() -> PathBuf {
@@ -55,6 +55,18 @@ pub fn get_data_dir() -> PathBuf {
 
     // Fallback: Current directory
     PathBuf::from(".").join(".ccg-gateway")
+}
+
+/// Get log directory (same as data directory)
+pub fn get_log_dir() -> PathBuf {
+    get_data_dir().join("logs")
+}
+
+/// Check if file logging is enabled via environment variable
+pub fn is_file_log_enabled() -> bool {
+    std::env::var("CCG_LOG_FILE")
+        .map(|v| v == "true" || v == "1")
+        .unwrap_or(false)
 }
 
 impl Default for Config {
