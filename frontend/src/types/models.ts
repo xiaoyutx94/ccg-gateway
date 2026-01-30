@@ -188,8 +188,6 @@ export interface RequestLogDetail extends RequestLogListItem {
   forward_body: string
   provider_headers: string | null
   provider_body: string | null
-  response_headers: string | null
-  response_body: string | null
   error_message: string | null
 }
 

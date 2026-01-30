@@ -228,11 +228,11 @@
             </el-collapse>
           </el-card>
 
-          <!-- Provider Response -->
+          <!-- Provider/Gateway Response -->
           <el-card class="detail-card" shadow="hover">
             <template #header>
               <div class="detail-card-header">
-                <span class="card-title">服务商响应</span>
+                <span class="card-title">服务商/网关响应</span>
                 <el-tag size="small" :type="getStatusCodeType(requestDetail.status_code)">
                   {{ requestDetail.status_code || '-' }}
                 </el-tag>
@@ -256,38 +256,6 @@
                   </div>
                 </template>
                 <pre class="code-block">{{ formatJson(requestDetail.provider_body) }}</pre>
-              </el-collapse-item>
-            </el-collapse>
-          </el-card>
-
-          <!-- Gateway Forward Response -->
-          <el-card class="detail-card" shadow="hover">
-            <template #header>
-              <div class="detail-card-header">
-                <span class="card-title">网关转发响应</span>
-                <el-tag size="small" :type="getStatusCodeType(requestDetail.status_code)">
-                  {{ requestDetail.status_code || '-' }}
-                </el-tag>
-              </div>
-            </template>
-            <el-collapse>
-              <el-collapse-item>
-                <template #title>
-                  <div class="collapse-title">
-                    <span>Headers</span>
-                    <el-button :icon="CopyDocument" size="small" text @click.stop="handleCopy(requestDetail.response_headers)" />
-                  </div>
-                </template>
-                <pre class="code-block">{{ formatJson(requestDetail.response_headers) }}</pre>
-              </el-collapse-item>
-              <el-collapse-item>
-                <template #title>
-                  <div class="collapse-title">
-                    <span>Body</span>
-                    <el-button :icon="CopyDocument" size="small" text @click.stop="handleCopy(requestDetail.response_body)" />
-                  </div>
-                </template>
-                <pre class="code-block">{{ formatJson(requestDetail.response_body) }}</pre>
               </el-collapse-item>
             </el-collapse>
           </el-card>

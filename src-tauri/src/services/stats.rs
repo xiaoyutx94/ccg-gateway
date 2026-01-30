@@ -1,4 +1,5 @@
 use sqlx::SqlitePool;
+use crate::db::models::RequestLogInfo;
 
 /// Record a request in the daily usage statistics
 pub async fn record_request(
@@ -37,21 +38,6 @@ pub async fn record_request(
     Ok(())
 }
 
-/// Request log detail info
-#[derive(Default)]
-pub struct RequestLogInfo {
-    pub client_headers: Option<String>,
-    pub client_body: Option<String>,
-    pub forward_url: Option<String>,
-    pub forward_headers: Option<String>,
-    pub forward_body: Option<String>,
-    pub provider_headers: Option<String>,
-    pub provider_body: Option<String>,
-    pub response_headers: Option<String>,
-    pub response_body: Option<String>,
-    pub error_message: Option<String>,
-}
-
 /// Record a request log entry
 pub async fn record_request_log(
     log_db: &SqlitePool,
@@ -71,8 +57,8 @@ pub async fn record_request_log(
 
     sqlx::query(
         r#"
-        INSERT INTO request_logs (created_at, cli_type, provider_name, model_id, status_code, elapsed_ms, input_tokens, output_tokens, client_method, client_path, client_headers, client_body, forward_url, forward_headers, forward_body, provider_headers, provider_body, response_headers, response_body, error_message)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO request_logs (created_at, cli_type, provider_name, model_id, status_code, elapsed_ms, input_tokens, output_tokens, client_method, client_path, client_headers, client_body, forward_url, forward_headers, forward_body, provider_headers, provider_body, error_message)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         "#,
     )
     .bind(now)
@@ -92,8 +78,6 @@ pub async fn record_request_log(
     .bind(&info.forward_body)
     .bind(&info.provider_headers)
     .bind(&info.provider_body)
-    .bind(&info.response_headers)
-    .bind(&info.response_body)
     .bind(&info.error_message)
     .execute(log_db)
     .await?;

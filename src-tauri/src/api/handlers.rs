@@ -17,7 +17,7 @@ use super::AppState;
 use crate::db::models::{
     Provider, ProviderCreate, ProviderResponse, ProviderUpdate,
     GatewaySettings, TimeoutSettings, TimeoutSettingsUpdate,
-    RequestLogItem, RequestLogDetail, PaginatedLogs,
+    RequestLogItem, RequestLogDetail, RequestLogInfo, PaginatedLogs,
     SystemLogItem, SystemLogListResponse,
     DailyStats,
     SystemStatus,
@@ -29,7 +29,6 @@ use crate::services::proxy::{
 };
 use crate::services::routing::select_provider;
 use crate::services::{provider as provider_service, stats as stats_service};
-use crate::services::stats::RequestLogInfo;
 
 // Common query params
 #[derive(Debug, Deserialize)]
@@ -387,7 +386,6 @@ async fn handle_streaming_request(
 
     // Store provider response info
     log_info.provider_headers = Some(serialize_reqwest_headers(&resp_headers));
-    log_info.response_headers = Some(serialize_reqwest_headers(&resp_headers));
 
     // Build response headers
     let mut builder = Response::builder()
@@ -542,7 +540,6 @@ async fn handle_streaming_request(
         let decompressed_body = maybe_decompress(&full_body, content_encoding);
         let mut final_log_info = log_info;
         final_log_info.provider_body = Some(truncate_body(&decompressed_body));
-        final_log_info.response_body = final_log_info.provider_body.clone();
         
         // Record stats
         let elapsed = start_time.elapsed().as_millis() as i64;
@@ -681,7 +678,6 @@ async fn handle_non_streaming_request(
 
     // Store provider response info
     log_info.provider_headers = Some(serialize_reqwest_headers(&resp_headers));
-    log_info.response_headers = Some(serialize_reqwest_headers(&resp_headers));
 
     // Read response body
     let body_bytes = match response.bytes().await {
@@ -723,7 +719,6 @@ async fn handle_non_streaming_request(
 
     // Store response body for logging (use decompressed version)
     log_info.provider_body = Some(truncate_body(&decompressed_body));
-    log_info.response_body = log_info.provider_body.clone();
 
     // Parse token usage (use decompressed body)
     let mut usage = TokenUsage::default();
@@ -1149,7 +1144,7 @@ pub async fn get_request_log_detail(
     Path(id): Path<i64>,
 ) -> Result<Json<RequestLogDetail>, (StatusCode, Json<ErrorResponse>)> {
     sqlx::query_as::<_, RequestLogDetail>(
-        "SELECT id, created_at, cli_type, provider_name, model_id, status_code, elapsed_ms, input_tokens, output_tokens, client_method, client_path, client_headers, client_body, forward_url, forward_headers, forward_body, provider_headers, provider_body, response_headers, response_body, error_message FROM request_logs WHERE id = ?",
+        "SELECT id, created_at, cli_type, provider_name, model_id, status_code, elapsed_ms, input_tokens, output_tokens, client_method, client_path, client_headers, client_body, forward_url, forward_headers, forward_body, provider_headers, provider_body, error_message FROM request_logs WHERE id = ?",
     )
     .bind(id)
     .fetch_optional(&state.log_db)

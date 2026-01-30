@@ -1092,7 +1092,7 @@ pub async fn get_request_log_detail(
     id: i64,
 ) -> Result<RequestLogDetail> {
     sqlx::query_as::<_, RequestLogDetail>(
-        "SELECT id, created_at, cli_type, provider_name, model_id, status_code, elapsed_ms, input_tokens, output_tokens, client_method, client_path, client_headers, client_body, forward_url, forward_headers, forward_body, provider_headers, provider_body, response_headers, response_body, error_message FROM request_logs WHERE id = ?",
+        "SELECT id, created_at, cli_type, provider_name, model_id, status_code, elapsed_ms, input_tokens, output_tokens, client_method, client_path, client_headers, client_body, forward_url, forward_headers, forward_body, provider_headers, provider_body, error_message FROM request_logs WHERE id = ?",
     )
     .bind(id)
     .fetch_optional(&log_db.0)

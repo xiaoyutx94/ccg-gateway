@@ -287,6 +287,19 @@ pub struct PromptUpdate {
 
 // ==================== Request Logs 相关实体 ====================
 
+/// Request log detail info (用于写入日志)
+#[derive(Default)]
+pub struct RequestLogInfo {
+    pub client_headers: Option<String>,
+    pub client_body: Option<String>,
+    pub forward_url: Option<String>,
+    pub forward_headers: Option<String>,
+    pub forward_body: Option<String>,
+    pub provider_headers: Option<String>,
+    pub provider_body: Option<String>,
+    pub error_message: Option<String>,
+}
+
 // Request Log Item (列表视图)
 #[derive(Debug, Serialize, FromRow)]
 pub struct RequestLogItem {
@@ -324,8 +337,6 @@ pub struct RequestLogDetail {
     pub forward_body: Option<String>,
     pub provider_headers: Option<String>,
     pub provider_body: Option<String>,
-    pub response_headers: Option<String>,
-    pub response_body: Option<String>,
     pub error_message: Option<String>,
 }
 
