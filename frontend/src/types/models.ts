@@ -203,11 +203,8 @@ export interface RequestLogListResponse {
 export interface SystemLogItem {
   id: number
   created_at: number
-  level: string
   event_type: string
-  provider_name: string | null
   message: string
-  details: string | null
 }
 
 export interface SystemLogListResponse {

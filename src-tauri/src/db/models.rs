@@ -343,11 +343,8 @@ pub struct PaginatedLogs {
 pub struct SystemLog {
     pub id: i64,
     pub created_at: i64,
-    pub level: String,
     pub event_type: String,
     pub message: String,
-    pub provider_name: Option<String>,
-    pub details: Option<String>,
 }
 
 // System Log Item (用于列表视图)
@@ -355,11 +352,8 @@ pub struct SystemLog {
 pub struct SystemLogItem {
     pub id: i64,
     pub created_at: i64,
-    pub level: String,
     pub event_type: String,
-    pub provider_name: Option<String>,
     pub message: String,
-    pub details: Option<String>,
 }
 
 #[derive(Debug, Serialize)]

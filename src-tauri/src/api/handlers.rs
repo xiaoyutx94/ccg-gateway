@@ -115,11 +115,8 @@ pub async fn proxy_handler_catchall(
             // Log system event
             let _ = stats_service::record_system_log(
                 &state.log_db,
-                "warn",
                 "no_provider_available",
                 &format!("CLI 类型 {} 没有可用的服务商", cli_type),
-                None,
-                None,
             ).await;
             return Ok(Response::builder()
                 .status(StatusCode::SERVICE_UNAVAILABLE)
@@ -325,11 +322,8 @@ async fn handle_streaming_request(
                 if was_blacklisted {
                     let _ = stats_service::record_system_log(
                         &state.log_db,
-                        "warn",
                         "provider_blacklisted",
                         &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
-                        Some(&prov_name),
-                        Some(&format!("{{\"error\": \"{}\"}}", e)),
                     ).await;
                 }
             }
@@ -360,11 +354,8 @@ async fn handle_streaming_request(
                 if was_blacklisted {
                     let _ = stats_service::record_system_log(
                         &state.log_db,
-                        "warn",
                         "provider_blacklisted",
                         &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
-                        Some(&prov_name),
-                        Some("{\"error\": \"First byte timeout\"}"),
                     ).await;
                 }
             }
@@ -555,11 +546,8 @@ async fn handle_streaming_request(
                 if had_failures {
                     let _ = stats_service::record_system_log(
                         &log_state.log_db,
-                        "info",
                         "provider_recovered",
                         &format!("服务商 {} 已恢复正常", log_provider_name),
-                        Some(&log_provider_name),
-                        None,
                     ).await;
                 }
             }
@@ -567,11 +555,8 @@ async fn handle_streaming_request(
             if was_blacklisted {
                 let _ = stats_service::record_system_log(
                     &log_state.log_db,
-                    "warn",
                     "provider_blacklisted",
                     &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
-                    Some(&prov_name),
-                    final_log_info.error_message.as_deref(),
                 ).await;
             }
         }
@@ -625,11 +610,8 @@ async fn handle_non_streaming_request(
                 if was_blacklisted {
                     let _ = stats_service::record_system_log(
                         &state.log_db,
-                        "warn",
                         "provider_blacklisted",
                         &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
-                        Some(&prov_name),
-                        Some(&format!("{{\"error\": \"{}\"}}", e)),
                     ).await;
                 }
             }
@@ -660,11 +642,8 @@ async fn handle_non_streaming_request(
                 if was_blacklisted {
                     let _ = stats_service::record_system_log(
                         &state.log_db,
-                        "warn",
                         "provider_blacklisted",
                         &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
-                        Some(&prov_name),
-                        Some("{\"error\": \"Request timeout\"}"),
                     ).await;
                 }
             }
@@ -708,11 +687,8 @@ async fn handle_non_streaming_request(
                 if was_blacklisted {
                     let _ = stats_service::record_system_log(
                         &state.log_db,
-                        "warn",
                         "provider_blacklisted",
                         &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
-                        Some(&prov_name),
-                        Some(&format!("{{\"error\": \"{}\"}}", e)),
                     ).await;
                 }
             }
@@ -754,11 +730,8 @@ async fn handle_non_streaming_request(
             if had_failures {
                 let _ = stats_service::record_system_log(
                     &state.log_db,
-                    "info",
                     "provider_recovered",
                     &format!("服务商 {} 已恢复正常", provider_name),
-                    Some(provider_name),
-                    None,
                 ).await;
             }
         }
@@ -766,11 +739,8 @@ async fn handle_non_streaming_request(
         if was_blacklisted {
             let _ = stats_service::record_system_log(
                 &state.log_db,
-                "warn",
                 "provider_blacklisted",
                 &format!("服务商 {} 因连续失败已被加入黑名单", prov_name),
-                Some(&prov_name),
-                log_info.error_message.as_deref(),
             ).await;
         }
     }
@@ -1191,9 +1161,7 @@ pub struct SystemLogQuery {
     pub page: i64,
     #[serde(default = "default_page_size")]
     pub page_size: i64,
-    pub level: Option<String>,
     pub event_type: Option<String>,
-    pub provider_name: Option<String>,
 }
 
 pub async fn get_system_logs_handler(
@@ -1209,17 +1177,9 @@ pub async fn get_system_logs_handler(
     let mut sql = "SELECT * FROM system_logs WHERE 1=1".to_string();
     let mut count_sql = "SELECT COUNT(*) FROM system_logs WHERE 1=1".to_string();
 
-    if query.level.is_some() {
-        sql.push_str(" AND level = ?");
-        count_sql.push_str(" AND level = ?");
-    }
     if query.event_type.is_some() {
         sql.push_str(" AND event_type = ?");
         count_sql.push_str(" AND event_type = ?");
-    }
-    if query.provider_name.is_some() {
-        sql.push_str(" AND provider_name = ?");
-        count_sql.push_str(" AND provider_name = ?");
     }
 
     sql.push_str(" ORDER BY id DESC LIMIT ? OFFSET ?");
@@ -1227,28 +1187,16 @@ pub async fn get_system_logs_handler(
         .bind(page_size)
         .bind(offset);
 
-    if let Some(ref lvl) = query.level {
-        q = q.bind(lvl);
-    }
     if let Some(ref et) = query.event_type {
         q = q.bind(et);
-    }
-    if let Some(ref pn) = query.provider_name {
-        q = q.bind(pn);
     }
 
     let items = q.fetch_all(pool).await.map_err(db_error)?;
 
     // Get total count
     let mut count_q = sqlx::query_as::<_, (i64,)>(&count_sql);
-    if let Some(ref lvl) = query.level {
-        count_q = count_q.bind(lvl);
-    }
     if let Some(ref et) = query.event_type {
         count_q = count_q.bind(et);
-    }
-    if let Some(ref pn) = query.provider_name {
-        count_q = count_q.bind(pn);
     }
     let (total,) = count_q.fetch_one(pool).await.map_err(db_error)?;
 

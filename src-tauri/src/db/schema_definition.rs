@@ -81,7 +81,7 @@ impl DatabaseSchema {
     /// 获取日志数据库 Schema
     pub fn log_schema() -> Self {
         Self {
-            version: 1,
+            version: 2,
             tables: Self::define_log_tables(),
         }
     }
@@ -622,12 +622,6 @@ impl DatabaseSchema {
                         default_value: None,
                     },
                     ColumnDefinition {
-                        name: "level".to_string(),
-                        data_type: "TEXT".to_string(),
-                        nullable: false,
-                        default_value: None,
-                    },
-                    ColumnDefinition {
                         name: "event_type".to_string(),
                         data_type: "TEXT".to_string(),
                         nullable: false,
@@ -637,18 +631,6 @@ impl DatabaseSchema {
                         name: "message".to_string(),
                         data_type: "TEXT".to_string(),
                         nullable: false,
-                        default_value: None,
-                    },
-                    ColumnDefinition {
-                        name: "provider_name".to_string(),
-                        data_type: "TEXT".to_string(),
-                        nullable: true,
-                        default_value: None,
-                    },
-                    ColumnDefinition {
-                        name: "details".to_string(),
-                        data_type: "TEXT".to_string(),
-                        nullable: true,
                         default_value: None,
                     },
                 ],

@@ -104,34 +104,23 @@ pub async fn record_request_log(
 /// Record a system log entry
 pub async fn record_system_log(
     log_db: &SqlitePool,
-    level: &str,
     event_type: &str,
     message: &str,
-    provider_name: Option<&str>,
-    details: Option<&str>,
 ) -> Result<(), sqlx::Error> {
     let now = chrono::Utc::now().timestamp();
 
     sqlx::query(
         r#"
-        INSERT INTO system_logs (created_at, level, event_type, message, provider_name, details)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO system_logs (created_at, event_type, message)
+        VALUES (?, ?, ?)
         "#,
     )
     .bind(now)
-    .bind(level)
     .bind(event_type)
     .bind(message)
-    .bind(provider_name)
-    .bind(details)
     .execute(log_db)
     .await?;
 
     Ok(())
-}
-
-/// Helper to create system log details JSON
-pub fn create_log_details(data: &serde_json::Value) -> String {
-    data.to_string()
 }
 

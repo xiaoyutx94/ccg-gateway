@@ -150,11 +150,8 @@ pub async fn create_provider(
     // Log system event
     let _ = crate::services::stats::record_system_log(
         &log_db.0,
-        "info",
         "provider_created",
         &format!("服务商 {} 已创建", provider_name),
-        Some(&provider_name),
-        None,
     ).await;
 
     get_provider(db, id).await
@@ -269,11 +266,8 @@ pub async fn update_provider(
     if has_updates || has_model_maps_update {
         let _ = crate::services::stats::record_system_log(
             &log_db.0,
-            "info",
             "provider_updated",
             &format!("服务商 {} 已更新", provider_name),
-            Some(&provider_name),
-            None,
         ).await;
     }
 
@@ -314,11 +308,8 @@ pub async fn delete_provider(
     // Log system event
     let _ = crate::services::stats::record_system_log(
         &log_db.0,
-        "info",
         "provider_deleted",
         &format!("服务商 {} 已删除", provider_name),
-        Some(&provider_name),
-        None,
     ).await;
 
     Ok(())
@@ -363,11 +354,8 @@ pub async fn reset_provider_failures(
     // Log system event
     let _ = crate::services::stats::record_system_log(
         &log_db.0,
-        "info",
         "provider_reset",
         &format!("服务商 {} 状态已手动重置", provider_name),
-        Some(&provider_name),
-        None,
     ).await;
 
     Ok(())

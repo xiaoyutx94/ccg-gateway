@@ -94,24 +94,15 @@
         <el-tab-pane label="系统日志" name="system">
           <!-- Filters -->
           <el-form :inline="true" class="filter-form">
-            <el-form-item label="级别">
-              <el-select v-model="systemFilters.level" clearable placeholder="全部" style="width: 100px">
-                <el-option label="INFO" value="INFO" />
-                <el-option label="WARN" value="WARN" />
-                <el-option label="ERROR" value="ERROR" />
-              </el-select>
-            </el-form-item>
             <el-form-item label="事件类型">
               <el-select v-model="systemFilters.event_type" clearable placeholder="全部" style="width: 150px">
-                <el-option label="服务商失败" value="服务商失败" />
-                <el-option label="服务商黑名单" value="服务商黑名单" />
-                <el-option label="服务商切换" value="服务商切换" />
-                <el-option label="失败重置" value="失败重置" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="服务商">
-              <el-select v-model="systemFilters.provider_name" clearable filterable placeholder="全部" style="width: 150px">
-                <el-option v-for="p in providerOptions" :key="p" :label="p" :value="p" />
+                <el-option label="无可用服务商" value="no_provider_available" />
+                <el-option label="服务商黑名单" value="provider_blacklisted" />
+                <el-option label="服务商恢复" value="provider_recovered" />
+                <el-option label="服务商创建" value="provider_created" />
+                <el-option label="服务商更新" value="provider_updated" />
+                <el-option label="服务商删除" value="provider_deleted" />
+                <el-option label="状态重置" value="provider_reset" />
               </el-select>
             </el-form-item>
             <el-form-item>
@@ -127,19 +118,10 @@
             <el-table-column label="时间" width="170">
               <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
             </el-table-column>
-            <el-table-column label="级别" width="80">
-              <template #default="{ row }">
-                <el-tag :type="getLevelType(row.level)" size="small">{{ row.level }}</el-tag>
-              </template>
+            <el-table-column label="事件类型" width="130">
+              <template #default="{ row }">{{ formatEventType(row.event_type) }}</template>
             </el-table-column>
-            <el-table-column prop="event_type" label="事件类型" width="130" />
-            <el-table-column prop="provider_name" label="服务商" width="150" show-overflow-tooltip />
             <el-table-column prop="message" label="消息" show-overflow-tooltip />
-            <el-table-column label="详情" width="80">
-              <template #default="{ row }">
-                <el-button v-if="row.details" type="primary" link @click="showSystemDetail(row)">查看</el-button>
-              </template>
-            </el-table-column>
           </el-table>
 
           <!-- Pagination -->
@@ -313,10 +295,6 @@
       </div>
     </el-dialog>
 
-    <!-- System Detail Dialog -->
-    <el-dialog v-model="systemDetailVisible" title="详情" width="600px">
-      <pre class="code-block">{{ systemDetailContent }}</pre>
-    </el-dialog>
   </div>
 </template>
 
@@ -357,12 +335,8 @@ const systemPage = ref(1)
 const systemPageSize = ref(20)
 const systemTotal = ref(0)
 const systemFilters = ref({
-  level: '',
-  event_type: '',
-  provider_name: ''
+  event_type: ''
 })
-const systemDetailVisible = ref(false)
-const systemDetailContent = ref('')
 
 async function fetchProviders() {
   try {
@@ -435,9 +409,7 @@ async function fetchSystemLogs() {
       page: systemPage.value,
       page_size: systemPageSize.value
     }
-    if (systemFilters.value.level) params.level = systemFilters.value.level
     if (systemFilters.value.event_type) params.event_type = systemFilters.value.event_type
-    if (systemFilters.value.provider_name) params.provider_name = systemFilters.value.provider_name
 
     const res = await logsApi.listSystemLogs(params)
     systemLogs.value = res.data.items
@@ -448,7 +420,7 @@ async function fetchSystemLogs() {
 }
 
 function resetSystemFilters() {
-  systemFilters.value = { level: '', event_type: '', provider_name: '' }
+  systemFilters.value = { event_type: '' }
   systemPage.value = 1
   fetchSystemLogs()
 }
@@ -460,11 +432,6 @@ async function clearSystemLogs() {
     ElMessage.success('系统日志已清空')
     fetchSystemLogs()
   } catch {}
-}
-
-function showSystemDetail(row: SystemLogItem) {
-  systemDetailContent.value = formatJson(row.details)
-  systemDetailVisible.value = true
 }
 
 function formatTime(timestamp: number): string {
@@ -480,12 +447,18 @@ function formatJson(str: string | null): string {
   }
 }
 
-function getLevelType(level: string): string {
-  switch (level) {
-    case 'ERROR': return 'danger'
-    case 'WARN': return 'warning'
-    default: return 'info'
-  }
+const eventTypeMap: Record<string, string> = {
+  no_provider_available: '无可用服务商',
+  provider_blacklisted: '服务商黑名单',
+  provider_recovered: '服务商恢复',
+  provider_created: '服务商创建',
+  provider_updated: '服务商更新',
+  provider_deleted: '服务商删除',
+  provider_reset: '状态重置',
+}
+
+function formatEventType(eventType: string): string {
+  return eventTypeMap[eventType] || eventType
 }
 
 function formatTokens(tokens: number | undefined): string {
