@@ -413,11 +413,15 @@ async fn handle_streaming_request(
     // 创建channel用于通知stream结束
     let (stream_end_tx, mut stream_end_rx) = mpsc::channel::<()>(1);
 
+    // 收集完整内容的上限（10MB），用于解析token；存储时再截断到100KB
+    const MAX_COLLECT_SIZE: usize = 10 * 1024 * 1024;
+
     let stream = async_stream::stream! {
         let mut byte_stream = response.bytes_stream();
         let idle_timeout = timeouts.idle_timeout;
         let mut chunk_count = 0usize;
         let mut total_bytes = 0usize;
+        let mut collected_bytes = 0usize;
 
         loop {
             match tokio::time::timeout(idle_timeout, byte_stream.next()).await {
@@ -426,11 +430,12 @@ async fn handle_streaming_request(
                     let chunk_size = chunk.len();
                     total_bytes += chunk_size;
                     
-                    // 只收集chunk到共享状态（快速操作，减少锁持有时间）
-                    // 限制总大小避免内存占用过大
-                    if total_bytes <= 100 * 1024 {
+                    // 收集chunk用于解析token（限制10MB防止极端情况）
+                    // 存储到数据库时再截断到100KB
+                    if collected_bytes < MAX_COLLECT_SIZE {
                         let mut chunks = collected_chunks_for_stream.lock().await;
                         chunks.push(chunk.clone());
+                        collected_bytes += chunk_size;
                         drop(chunks);  // 立即释放锁
                     }
                     
