@@ -104,7 +104,10 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0  # 获取完整历史以读取 tag message
+          fetch-depth: 0
+      
+      - name: Fetch tags
+        run: git fetch --tags --force
       
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -116,15 +119,23 @@ jobs:
       
       - name: Get tag message
         id: tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_MESSAGE=$(git tag -l --format='%(contents)' ${GITHUB_REF#refs/tags/})
+          TAG_NAME=${GITHUB_REF#refs/tags/}
+          # 通过 GitHub API 获取 annotated tag 的 message
+          TAG_SHA=$(gh api repos/${{ github.repository }}/git/ref/tags/$TAG_NAME --jq '.object.sha')
+          TAG_MESSAGE=$(gh api repos/${{ github.repository }}/git/tags/$TAG_SHA --jq '.message' 2>/dev/null || echo "")
+          
           if [ -z "$TAG_MESSAGE" ]; then
             echo "has_message=false" >> $GITHUB_OUTPUT
           else
             echo "has_message=true" >> $GITHUB_OUTPUT
-            echo "message<<EOF" >> $GITHUB_OUTPUT
-            echo "$TAG_MESSAGE" >> $GITHUB_OUTPUT
-            echo "EOF" >> $GITHUB_OUTPUT
+            {
+              echo "message<<EOF"
+              echo "$TAG_MESSAGE"
+              echo "EOF"
+            } >> $GITHUB_OUTPUT
           fi
       
       - name: Create Release (with tag message)
