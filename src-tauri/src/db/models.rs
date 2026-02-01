@@ -285,6 +285,92 @@ pub struct PromptUpdate {
     pub cli_flags: Option<Vec<PromptCliFlag>>,
 }
 
+// ==================== Skill 相关实体 ====================
+
+// Skill Repo (仓库配置 - 对应数据库表)
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct SkillRepo {
+    pub owner: String,
+    pub name: String,
+    pub branch: String,
+    pub enabled: i64,
+}
+
+// Skill Repo Response (用于 API 响应)
+#[derive(Debug, Serialize)]
+pub struct SkillRepoResponse {
+    pub owner: String,
+    pub name: String,
+    pub branch: String,
+    pub enabled: bool,
+}
+
+impl From<SkillRepo> for SkillRepoResponse {
+    fn from(r: SkillRepo) -> Self {
+        Self {
+            owner: r.owner,
+            name: r.name,
+            branch: r.branch,
+            enabled: r.enabled != 0,
+        }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct SkillRepoCreate {
+    pub owner: String,
+    pub name: String,
+    pub branch: Option<String>,
+}
+
+// Skill Config (已安装的 Skill - 对应数据库表)
+#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
+pub struct SkillConfig {
+    pub id: i64,
+    pub name: String,
+    pub description: Option<String>,
+    pub directory: String,
+    pub repo_owner: Option<String>,
+    pub repo_name: Option<String>,
+    pub repo_branch: Option<String>,
+    pub readme_url: Option<String>,
+    pub installed_at: i64,
+}
+
+// 可发现的 Skill (来自仓库，未安装)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DiscoverableSkill {
+    pub key: String,           // 唯一标识: "owner/repo:directory"
+    pub name: String,
+    pub description: String,
+    pub directory: String,     // 目录路径
+    pub readme_url: Option<String>,
+    pub repo_owner: String,
+    pub repo_name: String,
+    pub repo_branch: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SkillCliFlag {
+    pub cli_type: String,
+    pub enabled: bool,
+}
+
+// 已安装 Skill 响应
+#[derive(Debug, Serialize)]
+pub struct InstalledSkillResponse {
+    pub id: i64,
+    pub name: String,
+    pub description: Option<String>,
+    pub directory: String,
+    pub repo_owner: Option<String>,
+    pub repo_name: Option<String>,
+    pub repo_branch: Option<String>,
+    pub readme_url: Option<String>,
+    pub installed_at: i64,
+    pub cli_flags: Vec<SkillCliFlag>,
+}
+
 // ==================== Request Logs 相关实体 ====================
 
 /// Request log detail info (用于写入日志)

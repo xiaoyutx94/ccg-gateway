@@ -42,6 +42,11 @@ const router = createRouter({
           path: 'prompts',
           name: 'Prompts',
           component: () => import('@/views/prompts/index.vue')
+        },
+        {
+          path: 'skills',
+          name: 'Skills',
+          component: () => import('@/views/skills/index.vue')
         }
       ]
     }

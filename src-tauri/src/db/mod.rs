@@ -169,5 +169,13 @@ async fn init_default_data(pool: &SqlitePool) -> Result<(), sqlx::Error> {
         .execute(pool)
         .await?;
 
+    // skill_repos (默认仓库)
+    sqlx::query("INSERT OR IGNORE INTO skill_repos (owner, name, branch, enabled) VALUES ('anthropics', 'skills', 'main', 1)")
+        .execute(pool)
+        .await?;
+    sqlx::query("INSERT OR IGNORE INTO skill_repos (owner, name, branch, enabled) VALUES ('ComposioHQ', 'awesome-claude-skills', 'master', 1)")
+        .execute(pool)
+        .await?;
+
     Ok(())
 }

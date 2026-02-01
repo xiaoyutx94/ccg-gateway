@@ -143,6 +143,44 @@ export interface PromptUpdate {
   cli_flags?: CliFlags
 }
 
+// Skill types
+export interface SkillRepo {
+  owner: string
+  name: string
+  branch: string
+  enabled: boolean
+}
+
+export interface SkillRepoCreate {
+  owner: string
+  name: string
+  branch?: string
+}
+
+export interface DiscoverableSkill {
+  key: string
+  name: string
+  description: string
+  directory: string
+  readme_url: string | null
+  repo_owner: string
+  repo_name: string
+  repo_branch: string
+}
+
+export interface InstalledSkill {
+  id: number
+  name: string
+  description: string | null
+  directory: string
+  repo_owner: string | null
+  repo_name: string | null
+  repo_branch: string | null
+  readme_url: string | null
+  installed_at: number
+  cli_flags: Record<string, boolean>
+}
+
 // Stats types
 export interface DailyStats {
   usage_date: string

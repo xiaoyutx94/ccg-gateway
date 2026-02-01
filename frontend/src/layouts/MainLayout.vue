@@ -39,6 +39,10 @@
           <el-icon><Document /></el-icon>
           <span>提示词管理</span>
         </el-menu-item>
+        <el-menu-item index="/skills">
+          <el-icon><MagicStick /></el-icon>
+          <span>Skill 管理</span>
+        </el-menu-item>
       </el-menu>
       <div class="sidebar-footer">
         <span class="version">v{{ appVersion }}</span>
@@ -90,7 +94,8 @@ const pageTitle = computed(() => {
     '/logs': '日志管理',
     '/config': '全局配置',
     '/mcp': 'MCP 管理',
-    '/prompts': '提示词管理'
+    '/prompts': '提示词管理',
+    '/skills': 'Skill 管理'
   }
   return titles[route.path] || 'CCG Gateway'
 })
