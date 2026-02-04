@@ -200,6 +200,7 @@ pub fn run() {
             commands::delete_webdav_backup,
             commands::get_useragent_maps,
             commands::update_useragent_maps,
+            commands::check_for_updates,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

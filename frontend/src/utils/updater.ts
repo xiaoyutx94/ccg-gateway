@@ -1,4 +1,5 @@
 import { getVersion } from '@tauri-apps/api/app'
+import { invoke } from '@tauri-apps/api/core'
 import { open } from '@tauri-apps/plugin-shell'
 import { ElMessageBox, ElMessage, ElNotification } from 'element-plus'
 
@@ -8,12 +9,10 @@ const GITHUB_REPO = 'ccg-gateway'
 
 interface GitHubRelease {
   tag_name: string
-  name: string
-  body: string
+  name: string | null
+  body: string | null
   html_url: string
-  published_at: string
-  prerelease: boolean
-  draft: boolean
+  published_at: string | null
 }
 
 /**
@@ -36,31 +35,14 @@ function compareVersions(v1: string, v2: string): number {
 }
 
 /**
- * 获取最新的 GitHub Release
+ * 获取最新的 GitHub Release（通过 Rust 后端请求，支持系统代理）
  */
 async function getLatestRelease(): Promise<GitHubRelease | null> {
   try {
-    const response = await fetch(
-      `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/releases/latest`,
-      {
-        headers: {
-          'Accept': 'application/vnd.github.v3+json'
-        }
-      }
-    )
-    
-    if (!response.ok) {
-      if (response.status === 404) {
-        // 没有发布的版本
-        return null
-      }
-      throw new Error(`HTTP error: ${response.status}`)
-    }
-    
-    return await response.json()
+    return await invoke<GitHubRelease | null>('check_for_updates')
   } catch (error) {
     console.error('获取最新版本失败:', error)
-    return null
+    throw error // 抛出错误以区分网络问题和无版本
   }
 }
 
@@ -74,8 +56,9 @@ export async function checkForUpdates(silent: boolean = true): Promise<void> {
     const latestRelease = await getLatestRelease()
     
     if (!latestRelease) {
+      // 仓库没有发布任何 release
       if (!silent) {
-        ElMessage.info('当前没有可用的更新')
+        ElMessage.info('当前没有发布的版本')
       }
       return
     }
@@ -109,7 +92,17 @@ export async function checkForUpdates(silent: boolean = true): Promise<void> {
   } catch (error) {
     console.error('检查更新失败:', error)
     if (!silent) {
-      ElMessage.error('检查更新失败，请检查网络连接')
+      ElMessageBox.confirm(
+        '无法获取更新信息，可能是网络问题。您可以手动访问发布页面查看最新版本。',
+        '检查更新',
+        {
+          confirmButtonText: '前往发布页面',
+          cancelButtonText: '取消',
+          type: 'warning'
+        }
+      ).then(() => {
+        open(`https://github.com/${GITHUB_OWNER}/${GITHUB_REPO}/releases`)
+      }).catch(() => {})
     }
   }
 }
