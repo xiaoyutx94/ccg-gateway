@@ -728,8 +728,12 @@ async fn sync_cli_config(cli_type: &str, enabled: bool, default_config: &str, db
 }
 
 fn get_backup_path(original_path: &std::path::Path) -> std::path::PathBuf {
-    let file_name = original_path.file_name().unwrap().to_str().unwrap();
-    original_path.parent().unwrap().join(format!("{}.ccg-backup", file_name))
+    let file_name = original_path
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown");
+    let parent = original_path.parent().unwrap_or(original_path);
+    parent.join(format!("{}.ccg-backup", file_name))
 }
 
 fn backup_file(path: &std::path::Path) -> Result<()> {

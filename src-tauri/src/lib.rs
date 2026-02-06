@@ -40,10 +40,20 @@ pub fn run() {
                     std::fs::create_dir_all(parent).ok();
                 }
 
-                let db = init_db(&db_path).await.expect("Failed to init database");
-                let log_db = init_db(&log_db_path)
-                    .await
-                    .expect("Failed to init log database");
+                let db = match init_db(&db_path).await {
+                    Ok(db) => db,
+                    Err(e) => {
+                        tracing::error!("Failed to init database: {}", e);
+                        std::process::exit(1);
+                    }
+                };
+                let log_db = match init_db(&log_db_path).await {
+                    Ok(db) => db,
+                    Err(e) => {
+                        tracing::error!("Failed to init log database: {}", e);
+                        std::process::exit(1);
+                    }
+                };
 
                 app.manage(db.clone());
                 app.manage(LogDb(log_db.clone()));
@@ -66,7 +76,7 @@ pub fn run() {
                     }
                     Err(e) => {
                         tracing::error!("Failed to bind to {}: {}", addr, e);
-                        panic!("Cannot bind to address {}: {}", addr, e);
+                        std::process::exit(1);
                     }
                 };
 
@@ -84,7 +94,13 @@ pub fn run() {
                 .build()?;
 
             // Get default app icon for tray
-            let icon = app.default_window_icon().cloned().unwrap();
+            let icon = match app.default_window_icon().cloned() {
+                Some(icon) => icon,
+                None => {
+                    tracing::error!("Failed to get default window icon");
+                    std::process::exit(1);
+                }
+            };
             
             let _tray = TrayIconBuilder::new()
                 .icon(icon)
@@ -203,5 +219,8 @@ pub fn run() {
             commands::check_for_updates,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running tauri application");
+        .unwrap_or_else(|e| {
+            tracing::error!("Failed to run tauri application: {}", e);
+            std::process::exit(1);
+        });
 }
