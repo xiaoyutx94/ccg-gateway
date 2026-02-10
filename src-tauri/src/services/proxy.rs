@@ -379,42 +379,25 @@ pub fn set_auth_header(
     }
 }
 
-/// User-Agent 映射规则
-#[derive(Debug, Clone)]
-pub struct UseragentMapRule {
-    pub source_pattern: String,
-    pub target_value: String,
-}
-
-/// Apply User-Agent mapping to headers
-/// Returns the original User-Agent if mapped for logging purposes
-pub fn apply_useragent_mapping(
+/// Apply User-Agent override to headers
+/// If custom_ua is provided, replaces the User-Agent header with it.
+/// Returns the original User-Agent if replaced, for logging purposes.
+pub fn apply_useragent_override(
     headers: &mut reqwest::header::HeaderMap,
-    rules: &[UseragentMapRule],
+    custom_ua: Option<&str>,
 ) -> Option<String> {
-    if rules.is_empty() {
+    let Some(target_ua) = custom_ua.filter(|s| !s.is_empty()) else {
         return None;
-    }
+    };
 
-    // Get current User-Agent
-    let current_ua = headers
+    let original_ua = headers
         .get(reqwest::header::USER_AGENT)
         .and_then(|v| v.to_str().ok())
         .map(|s| s.to_string());
 
-    let Some(ua) = current_ua.as_ref() else {
-        return None;
-    };
-
-    // Find matching rule using wildcard_match
-    for rule in rules {
-        if wildcard_match(&rule.source_pattern, ua) {
-            // Replace User-Agent with target value
-            if let Ok(new_value) = reqwest::header::HeaderValue::from_str(&rule.target_value) {
-                headers.insert(reqwest::header::USER_AGENT, new_value);
-                return current_ua; // Return original UA for logging
-            }
-        }
+    if let Ok(new_value) = reqwest::header::HeaderValue::from_str(target_ua) {
+        headers.insert(reqwest::header::USER_AGENT, new_value);
+        return original_ua;
     }
 
     None

@@ -13,7 +13,6 @@ use crate::db::models::{
     WebdavSettings, WebdavSettingsUpdate, WebdavBackup,
     ProjectInfo, SessionInfo, PaginatedProjects, PaginatedSessions, SessionMessage,
     SystemStatus,
-    UseragentMap, UseragentMapInput, UseragentMapResponse,
 };
 use crate::LogDb;
 use sqlx::SqlitePool;
@@ -114,10 +113,17 @@ pub async fn create_provider(
     let cli_type = input.cli_type.unwrap_or_else(|| "claude_code".to_string());
     let provider_name = input.name.clone();
 
+    // Normalize custom_useragent: treat empty string as None
+    let custom_ua = input.custom_useragent
+        .as_deref()
+        .map(|s| s.trim())
+        .filter(|s| !s.is_empty())
+        .map(|s| s.to_string());
+
     let result = sqlx::query(
         r#"
-        INSERT INTO providers (cli_type, name, base_url, api_key, enabled, failure_threshold, blacklist_minutes, consecutive_failures, sort_order, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 0, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM providers), ?, ?)
+        INSERT INTO providers (cli_type, name, base_url, api_key, enabled, failure_threshold, blacklist_minutes, consecutive_failures, sort_order, custom_useragent, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, 0, (SELECT COALESCE(MAX(sort_order), 0) + 1 FROM providers), ?, ?, ?)
         "#,
     )
     .bind(&cli_type)
@@ -127,6 +133,7 @@ pub async fn create_provider(
     .bind(input.enabled.unwrap_or(true) as i64)
     .bind(input.failure_threshold.unwrap_or(3))
     .bind(input.blacklist_minutes.unwrap_or(10))
+    .bind(&custom_ua)
     .bind(now)
     .bind(now)
     .execute(db.inner())
@@ -212,6 +219,10 @@ pub async fn update_provider(
         updates.push("blacklist_minutes = ?".to_string());
         has_updates = true;
     }
+    if input.custom_useragent.is_some() {
+        updates.push("custom_useragent = ?".to_string());
+        has_updates = true;
+    }
 
     if has_updates {
         let query = format!("UPDATE providers SET {} WHERE id = ?", updates.join(", "));
@@ -234,6 +245,15 @@ pub async fn update_provider(
         }
         if let Some(blacklist_minutes) = input.blacklist_minutes {
             q = q.bind(blacklist_minutes);
+        }
+        if let Some(ref custom_useragent) = input.custom_useragent {
+            // Normalize: treat empty string as NULL
+            let ua = custom_useragent.trim();
+            if ua.is_empty() {
+                q = q.bind(None::<String>);
+            } else {
+                q = q.bind(ua);
+            }
         }
 
         q.bind(id)
@@ -4338,49 +4358,6 @@ pub async fn toggle_skill_cli(db: State<'_, SqlitePool>, id: i64, cli_type: Stri
     }
 
     Ok(())
-}
-
-// ==================== User-Agent 映射命令 ====================
-
-#[tauri::command]
-pub async fn get_useragent_maps(db: State<'_, SqlitePool>) -> Result<Vec<UseragentMapResponse>> {
-    let maps = sqlx::query_as::<_, UseragentMap>(
-        "SELECT * FROM useragent_map ORDER BY sort_order, id"
-    )
-    .fetch_all(db.inner())
-    .await
-    .map_err(|e| e.to_string())?;
-
-    Ok(maps.into_iter().map(UseragentMapResponse::from).collect())
-}
-
-#[tauri::command]
-pub async fn update_useragent_maps(
-    db: State<'_, SqlitePool>,
-    maps: Vec<UseragentMapInput>,
-) -> Result<Vec<UseragentMapResponse>> {
-    // 删除所有现有映射
-    sqlx::query("DELETE FROM useragent_map")
-        .execute(db.inner())
-        .await
-        .map_err(|e| e.to_string())?;
-
-    // 插入新的映射
-    for (idx, map) in maps.iter().enumerate() {
-        sqlx::query(
-            "INSERT INTO useragent_map (source_pattern, target_value, enabled, sort_order) VALUES (?, ?, ?, ?)"
-        )
-        .bind(&map.source_pattern)
-        .bind(&map.target_value)
-        .bind(map.enabled as i64)
-        .bind(idx as i64)
-        .execute(db.inner())
-        .await
-        .map_err(|e| e.to_string())?;
-    }
-
-    // 返回更新后的列表
-    get_useragent_maps(db).await
 }
 
 // ==================== 检查更新命令 ====================

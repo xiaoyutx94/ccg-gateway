@@ -21,6 +21,7 @@ export interface Provider {
   consecutive_failures: number
   blacklisted_until: number | null
   sort_order: number
+  custom_useragent: string | null
   model_maps: ModelMap[]
   is_blacklisted: boolean
 }
@@ -33,6 +34,7 @@ export interface ProviderCreate {
   enabled?: boolean
   failure_threshold?: number
   blacklist_minutes?: number
+  custom_useragent?: string
   model_maps?: ModelMap[]
 }
 
@@ -43,6 +45,7 @@ export interface ProviderUpdate {
   enabled?: boolean
   failure_threshold?: number
   blacklist_minutes?: number
+  custom_useragent?: string
   model_maps?: ModelMap[]
 }
 
@@ -82,20 +85,6 @@ export interface TimeoutSettingsUpdate {
 export interface CliSettingsUpdate {
   enabled?: boolean
   default_json_config?: string
-}
-
-// User-Agent 映射类型
-export interface UseragentMapInput {
-  source_pattern: string
-  target_value: string
-  enabled: boolean
-}
-
-export interface UseragentMapResponse {
-  id: number
-  source_pattern: string
-  target_value: string
-  enabled: boolean
 }
 
 export interface SystemStatus {

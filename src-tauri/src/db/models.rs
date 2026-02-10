@@ -16,6 +16,7 @@ pub struct Provider {
     pub consecutive_failures: i64,
     pub blacklisted_until: Option<i64>,
     pub sort_order: i64,
+    pub custom_useragent: Option<String>,
     pub created_at: i64,
     pub updated_at: i64,
 }
@@ -46,6 +47,7 @@ pub struct ProviderCreate {
     pub enabled: Option<bool>,
     pub failure_threshold: Option<i64>,
     pub blacklist_minutes: Option<i64>,
+    pub custom_useragent: Option<String>,
     pub model_maps: Option<Vec<ModelMapInput>>,
 }
 
@@ -57,6 +59,7 @@ pub struct ProviderUpdate {
     pub enabled: Option<bool>,
     pub failure_threshold: Option<i64>,
     pub blacklist_minutes: Option<i64>,
+    pub custom_useragent: Option<String>,
     pub model_maps: Option<Vec<ModelMapInput>>,
 }
 
@@ -82,6 +85,7 @@ pub struct ProviderResponse {
     pub consecutive_failures: i64,
     pub blacklisted_until: Option<i64>,
     pub sort_order: i64,
+    pub custom_useragent: Option<String>,
     pub is_blacklisted: bool,
     pub model_maps: Vec<ModelMapResponse>,
 }
@@ -102,6 +106,7 @@ impl From<Provider> for ProviderResponse {
             consecutive_failures: p.consecutive_failures,
             blacklisted_until: p.blacklisted_until,
             sort_order: p.sort_order,
+            custom_useragent: p.custom_useragent,
             is_blacklisted,
             model_maps: vec![], // Will be populated by the caller
         }
@@ -202,46 +207,6 @@ pub struct WebdavBackup {
     pub filename: String,
     pub size: i64,
     pub modified: String,
-}
-
-// ==================== User-Agent 映射相关实体 ====================
-
-// User-Agent Map (对应数据库表)
-#[derive(Debug, Clone, Serialize, Deserialize, FromRow)]
-pub struct UseragentMap {
-    pub id: i64,
-    pub source_pattern: String,
-    pub target_value: String,
-    pub enabled: i64,
-    pub sort_order: i64,
-}
-
-// User-Agent Map Input (用于创建/更新)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UseragentMapInput {
-    pub source_pattern: String,
-    pub target_value: String,
-    pub enabled: bool,
-}
-
-// User-Agent Map Response (用于API响应)
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct UseragentMapResponse {
-    pub id: i64,
-    pub source_pattern: String,
-    pub target_value: String,
-    pub enabled: bool,
-}
-
-impl From<UseragentMap> for UseragentMapResponse {
-    fn from(m: UseragentMap) -> Self {
-        Self {
-            id: m.id,
-            source_pattern: m.source_pattern,
-            target_value: m.target_value,
-            enabled: m.enabled != 0,
-        }
-    }
 }
 
 // ==================== MCP 相关实体 ====================

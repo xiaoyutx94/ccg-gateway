@@ -90,6 +90,10 @@
         <el-form-item label="拉黑时长(分钟)">
           <el-input-number v-model="form.blacklist_minutes" :min="0" :max="1440" />
         </el-form-item>
+        <el-form-item label="自定义UA">
+          <el-input v-model="form.custom_useragent" placeholder="留空则使用原始UA" clearable />
+          <span class="form-tip">替换转发请求的 User-Agent</span>
+        </el-form-item>
 
         <el-divider>模型转发配置</el-divider>
         <div class="model-maps-section">
@@ -162,6 +166,7 @@ const form = ref({
   api_key: '',
   failure_threshold: 3,
   blacklist_minutes: 10,
+  custom_useragent: '',
   model_maps: [] as FormModelMap[]
 })
 
@@ -177,6 +182,7 @@ function resetForm() {
     api_key: '',
     failure_threshold: 3,
     blacklist_minutes: 10,
+    custom_useragent: '',
     model_maps: []
   }
 }
@@ -205,6 +211,7 @@ function handleEdit(provider: Provider) {
     api_key: provider.api_key,
     failure_threshold: provider.failure_threshold,
     blacklist_minutes: provider.blacklist_minutes,
+    custom_useragent: provider.custom_useragent || '',
     model_maps: provider.model_maps.map(m => ({
       source_model: m.source_model,
       target_model: m.target_model,
@@ -231,6 +238,7 @@ async function handleSave() {
     api_key: form.value.api_key.trim(),
     failure_threshold: form.value.failure_threshold,
     blacklist_minutes: form.value.blacklist_minutes,
+    custom_useragent: form.value.custom_useragent.trim(),
     model_maps: buildModelMaps()
   }
 

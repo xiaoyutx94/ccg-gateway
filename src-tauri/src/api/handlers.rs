@@ -23,9 +23,9 @@ use crate::db::models::{
     SystemStatus,
 };
 use crate::services::proxy::{
-    apply_body_model_mapping, apply_url_model_mapping, apply_useragent_mapping,
+    apply_body_model_mapping, apply_url_model_mapping, apply_useragent_override,
     detect_cli_type, filter_headers, is_streaming, parse_token_usage, set_auth_header,
-    CliType, TimeoutConfig, TokenUsage, UseragentMapRule,
+    CliType, TimeoutConfig, TokenUsage,
 };
 use crate::services::routing::select_provider;
 use crate::services::{provider as provider_service, stats as stats_service};
@@ -144,17 +144,6 @@ pub async fn proxy_handler_catchall(
         Err(_) => TimeoutConfig::default(),
     };
 
-    // Get User-Agent mapping rules
-    let ua_rules: Vec<UseragentMapRule> = sqlx::query_as::<_, (String, String)>(
-        "SELECT source_pattern, target_value FROM useragent_map WHERE enabled = 1 ORDER BY sort_order, id"
-    )
-    .fetch_all(&state.db)
-    .await
-    .unwrap_or_default()
-    .into_iter()
-    .map(|(source_pattern, target_value)| UseragentMapRule { source_pattern, target_value })
-    .collect();
-
     // Check if streaming
     let streaming = is_streaming(&body_bytes, &full_path, cli_type);
 
@@ -182,8 +171,8 @@ pub async fn proxy_handler_catchall(
     let mut req_headers = filter_headers(&headers);
     set_auth_header(&mut req_headers, &provider.api_key, cli_type);
 
-    // Apply User-Agent mapping
-    let _original_ua = apply_useragent_mapping(&mut req_headers, &ua_rules);
+    // Apply User-Agent override (per-provider)
+    let _original_ua = apply_useragent_override(&mut req_headers, provider.custom_useragent.as_deref());
 
     // Set content-type if not present
     if !req_headers.contains_key(reqwest::header::CONTENT_TYPE) {

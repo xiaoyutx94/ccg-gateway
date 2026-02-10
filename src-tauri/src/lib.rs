@@ -214,8 +214,6 @@ pub fn run() {
             commands::list_webdav_backups,
             commands::import_from_webdav,
             commands::delete_webdav_backup,
-            commands::get_useragent_maps,
-            commands::update_useragent_maps,
             commands::check_for_updates,
         ])
         .run(tauri::generate_context!())
