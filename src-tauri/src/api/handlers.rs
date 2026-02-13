@@ -277,7 +277,11 @@ fn truncate_body(body: &[u8]) -> String {
     const MAX_SIZE: usize = 100 * 1024; // 100KB
     let s = String::from_utf8_lossy(body);
     if s.len() > MAX_SIZE {
-        format!("{}...[truncated]", &s[..MAX_SIZE])
+        let mut end = MAX_SIZE;
+        while end > 0 && !s.is_char_boundary(end) {
+            end -= 1;
+        }
+        format!("{}...[truncated]", &s[..end])
     } else {
         s.to_string()
     }
